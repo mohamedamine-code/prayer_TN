@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.aladhan.com; font-src 'self'"
+    />
+    <title>Salati Widget</title>
+    <style>
+      /* Kill the white first-paint flash of the transparent window: this must
+         apply before any async Vite CSS link finishes loading. */
+      html, body, #mini-root { background: transparent; margin: 0; padding: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="mini-root"></div>
+    <script type="module" src="/src/mini/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-body: #04120c;
+  --bg-body-2: #0a1f14;
+  --bg-card: rgba(255, 255, 255, 0.055);
+  --bg-card-hover: rgba(255, 255, 255, 0.1);
+  --bg-input: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #eef7f0;
+  --text-muted: #93b8a3;
+  --text-faint: #5f8a74;
+  --accent: #34d399;
+  --accent-hover: #6ee7b7;
+  --accent-soft: rgba(52, 211, 153, 0.14);
+  --accent-softer: rgba(52, 211, 153, 0.08);
+  --danger: #f87171;
+  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='light'] {
+  --bg-body: #f2f8f3;
+  --bg-body-2: #e8f1ec;
+  --bg-card: rgba(6, 26, 16, 0.04);
+  --bg-card-hover: rgba(6, 26, 16, 0.08);
+  --bg-input: rgba(6, 26, 16, 0.06);
+  --border-subtle: rgba(6, 26, 16, 0.08);
+  --border-strong: rgba(6, 26, 16, 0.16);
+  --text-primary: #10241a;
+  --text-muted: #3e5c4c;
+  --text-faint: #5c7566;
+  --accent: #047857;
+  --accent-hover: #059669;
+  --accent-soft: rgba(4, 120, 87, 0.14);
+  --accent-softer: rgba(4, 120, 87, 0.07);
+  --danger: #dc2626;
+  --shadow-card: 0 6px 18px rgba(6, 26, 16, 0.12);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans', 'Noto Sans Arabic', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+input,
+select,
+textarea {
+  user-select: text;
+}
+
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Subtle Islamic geometric pattern (SVG tiles, zero requests). */
+.pattern-islamic {
+  background-image:
+    radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.035) 1.5px, transparent 1.6px),
+    radial-gradient(circle at 14px 14px, rgba(255, 255, 255, 0.035) 1.5px, transparent 1.6px);
+  background-size: 28px 28px;
+}
+
+[dir='rtl'] .pattern-islamic {
+  transform: scaleX(-1);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
