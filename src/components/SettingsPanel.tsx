@@ -1,17 +1,19 @@
 import { type ReactNode } from 'react';
-import { X, RotateCcw, Bell, BellOff, BellRing } from 'lucide-react';
+import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4 } from 'lucide-react';
 import type { RadioGroupOptions } from './RadioGroup';
 import { RadioGroup } from './RadioGroup';
 import { CitySelect } from './CitySelect';
 import { useSettings } from '../hooks/useSettings';
+import { useLocation } from '../hooks/useLocation';
 import { getDict, RADIO_LANGS, prayerName } from '../i18n';
 import type {
+  FontSizeMode,
   NotifMode,
   PrayerKey,
   Settings,
   ThemeMode,
 } from '../types/prayer';
-import { CALC_METHODS } from '../shared/settings';
+import { CALC_METHODS, IQAMA_DELAY_MAX, IQAMA_DELAY_MIN, DEFAULT_IQAMA_DELAYS } from '../shared/settings';
 
 export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element {
   const { settings, update, reset } = useSettings();
@@ -47,10 +49,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     { value: 'hanafi', label: t.asrHanafi },
   ];
 
+  const fontOptions: { value: FontSizeMode; label: string }[] = [
+    { value: 'small', label: t.fontSmall },
+    { value: 'medium', label: t.fontMedium },
+    { value: 'big', label: t.fontBig },
+  ];
+
   return (
     <div
       className="absolute inset-0 z-40 flex flex-col"
-      style={{ background: 'rgba(6, 20, 13, 0.97)' }}
+      style={{ background: 'var(--bg-body-2)' }}
       dir={dir}
     >
       <div
@@ -72,12 +80,18 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       </header>
 
       <div className="app-no-drag flex min-h-0 flex-1 flex-col space-y-5 overflow-y-auto px-4 py-4">
+        <AutomaticLocationSection />
+
         <Field label={t.city}>
           <CitySelect
             value={settings.cityId}
             onChange={(cityId) => update({ cityId })}
             language={settings.language}
           />
+        </Field>
+
+        <Field label={t.iqamaConfig}>
+          <IqamaConfigSection />
         </Field>
 
         <Field label={t.language}>
@@ -118,6 +132,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
             value={settings.theme}
             options={themeOptions as unknown as RadioGroupOptions<ThemeMode>}
             onChange={(v) => update({ theme: v as ThemeMode })}
+          />
+        </Field>
+
+        <Field label={t.fontSize}>
+          <RadioGroup
+            value={settings.fontSize}
+            options={fontOptions as unknown as RadioGroupOptions<FontSizeMode>}
+            onChange={(v) => update({ fontSize: v as FontSizeMode })}
           />
         </Field>
 
@@ -240,8 +262,219 @@ function PrayerNotificationRows({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+/** Manual Iqama delays: one independent numeric input per prayer (minutes).
+ *  Saved in shared settings; Iqama = daily prayer time + configured delay.
+ *  Nothing is fetched from an external API and unset prayers show as
+ *  "not configured" rather than an invented time. */
+function IqamaConfigSection(): JSX.Element {
+  const { settings, update } = useSettings();
+  const t = getDict(settings.language);
+  const rtl = settings.language === 'ar';
+  const prayers: PrayerKey[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  const setDelay = (p: PrayerKey, raw: string): void => {
+    let value: number | null = null;
+    if (raw.trim() !== '') {
+      const n = Math.round(Number(raw));
+      if (Number.isFinite(n)) value = Math.min(IQAMA_DELAY_MAX, Math.max(IQAMA_DELAY_MIN, n));
+    }
+    update({ iqamaDelays: { ...settings.iqamaDelays, [p]: value } });
+  };
+
   return (
+    <div className="space-y-2">
+      {prayers.map((p) => {
+        const current = settings.iqamaDelays[p];
+        const value = current ?? '';
+        return (
+          <div
+            key={p}
+            className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-2"
+          >
+            <Clock4 className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+            <span className={`flex-1 truncate text-[12px] font-medium text-[var(--text-primary)]`}>
+              {prayerName(p, rtl ? 'ar' : settings.language)}
+            </span>
+            <button
+              type="button"
+              title={t.minusDelay}
+              onClick={() => setDelay(p, String(Math.max(IQAMA_DELAY_MIN, (current ?? 0) - 1)))}
+              className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+              disabled={current === null || current === undefined || current <= IQAMA_DELAY_MIN}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={IQAMA_DELAY_MIN}
+              max={IQAMA_DELAY_MAX}
+              step={1}
+              value={value}
+              placeholder="—"
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '') setDelay(p, '');
+                else setDelay(p, v);
+              }}
+              className={`w-14 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 py-1 text-center text-[12px] font-semibold tabular-nums text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] ${
+                rtl ? 'text-left' : ''
+              }`}
+            />
+            <button
+              type="button"
+              title={t.plusDelay}
+              onClick={() => setDelay(p, String(Math.min(IQAMA_DELAY_MAX, (current ?? 0) + 1)))}
+              className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+              disabled={(current ?? 0) >= IQAMA_DELAY_MAX}
+            >
+              +
+            </button>
+            <span className="w-9 text-right text-[10px] text-[var(--text-faint)]">{t.minutes}</span>
+          </div>
+        );
+      })}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        <p className="text-[9px] leading-relaxed text-[var(--text-faint)]">{t.iqamaDelayHint}</p>
+        <button
+          type="button"
+          onClick={() => update({ iqamaDelays: { ...DEFAULT_IQAMA_DELAYS } })}
+          className="shrink-0 rounded-lg border border-[var(--border-strong)] px-2.5 py-1 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--danger)]"
+        >
+          {t.iqamaResetDefaults}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Automatic Location control group (Section 6 of the location feature). */
+function AutomaticLocationSection(): JSX.Element {
+  const { settings } = useSettings();
+  const loc = useLocation();
+  const t = getDict(settings.language);
+  const s = loc.state;
+
+  const permLabel =
+    s.consent === 'granted' ? t.locPermGranted : s.consent === 'declined' ? t.locPermDeclined : t.locPermNotAsked;
+
+  const lastCity =
+    s.city && s.country ? `${s.city}, ${s.country}` : s.city ?? loc.placeLabel ?? '—';
+  const lastUpdate = s.updatedAt !== null ? new Date(s.updatedAt).toLocaleTimeString() : '—';
+  const statusText =
+    loc.status === 'detecting'
+      ? t.locDetecting
+      : loc.status === 'unavailable'
+        ? `${t.locUnavailable}${loc.errorDetail ? ` — ${loc.errorDetail}` : ''}`
+        : loc.status === 'prompt' || loc.status === 'denied'
+          ? `${t.locLocked} — ${permLabel}`
+          : loc.status === 'active'
+            ? t.locActive
+            : t.locManualHint;
+
+  return (
+    <Field label={t.locSection}>
+      <div className="space-y-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3">
+        <ToggleRow
+          label={t.locToggle}
+          checked={settings.locationEnabled}
+          onChange={(v) => loc.setEnabled(v)}
+        />
+
+        <div className="space-y-1 text-[10px] leading-relaxed text-[var(--text-muted)]">
+          <div className="flex justify-between gap-2">
+            <span className="text-[var(--text-faint)]">{t.locPermission}</span>
+            <span>{permLabel}</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-[var(--text-faint)]">{t.locLastCity}</span>
+            <span className="max-w-[60%] truncate" title={lastCity}>{lastCity}</span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-[var(--text-faint)]">{t.locLastUpdate}</span>
+            <span>{lastUpdate}</span>
+          </div>
+          {s.accuracyM !== null && (
+            <div className="flex justify-between gap-2">
+              <span className="text-[var(--text-faint)]">GPS ±</span>
+              <span>±{s.accuracyM} m</span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={loc.refresh}
+            disabled={s.consent !== 'granted' || !settings.locationEnabled}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] py-1.5 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--accent)] disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <RefreshCw className="h-3 w-3" />
+            {t.locRefresh}
+          </button>
+          <button
+            type="button"
+            onClick={loc.useManualCity}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] py-1.5 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)]"
+          >
+            <Hand className="h-3 w-3" />
+            {t.locManualBtn}
+          </button>
+          <button
+            type="button"
+            onClick={loc.clearStored}
+            disabled={s.lat === null && s.updatedAt === null}
+            className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] py-1.5 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--danger)] disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <Trash2 className="h-3 w-3" />
+            {t.locClear}
+          </button>
+        </div>
+
+        {/* Denied explanation (no auto retry, manual path offered). */}
+        {(loc.status === 'denied' || loc.status === 'prompt') && settings.locationEnabled && (
+          <div className="rounded-lg bg-[var(--bg-card-hover)] px-2.5 py-2 text-[10px] leading-relaxed text-[var(--text-muted)]">
+            <div className="flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
+              <MapPin className="h-3 w-3" />
+              {t.locDenyTitle}
+            </div>
+            <p className="mt-1">{t.locDenyBody}</p>
+            <p className="mt-1 text-[var(--text-faint)]">{t.locWindowsHint}</p>
+            <button
+              type="button"
+              onClick={loc.openDialog}
+              className="mt-2 rounded-md border border-[var(--border-strong)] px-2 py-1 text-[10px] text-[var(--text-primary)] transition hover:bg-[var(--bg-card)]"
+            >
+              {t.locRetry}
+            </button>
+          </div>
+        )}
+
+        {/* Unavailable error (device could not fix a position): no crash, manual retry. */}
+        {loc.status === 'unavailable' && (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--bg-card-hover)] px-2.5 py-2 text-[10px] text-[var(--text-muted)]">
+            <span className="truncate">{loc.errorDetail ?? t.locUnavailable}</span>
+            <button
+              type="button"
+              onClick={loc.refresh}
+              className="shrink-0 rounded-md border border-[var(--border-strong)] px-2 py-1 text-[10px] text-[var(--text-primary)] transition hover:bg-[var(--bg-card)]"
+            >
+              {t.locRetry}
+            </button>
+          </div>
+        )}
+
+        <p className="text-[9px] leading-relaxed text-[var(--text-faint)]">{statusText}</p>
+      </div>
+      <p className="mt-1.5 flex items-start gap-1.5 text-[10px] leading-relaxed text-[var(--text-faint)]">
+        <ClipboardList className="mt-0.5 h-3 w-3 shrink-0" />
+        {t.locManualHint}
+      </p>
+    </Field>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }): JSX.Element {  return (
     <div>
       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         {label}

@@ -123,13 +123,14 @@ export function getNextPrayer(
   return null;
 }
 
+/** Countdown as "HH:MM:SS" (two digits per unit), clamped at 00:00:00. */
 export function formatCountdown(msRemaining: number): string {
   const total = Math.max(0, Math.floor(msRemaining / 1000));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(h)} h ${pad(m)} min ${pad(s)} s`;
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 export const COUNTDOWN_PARTS_TZ = TUNIS_TZ;

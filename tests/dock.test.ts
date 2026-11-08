@@ -176,7 +176,7 @@ describe('expandAnchored', () => {
 
     const leftCorner = expandAnchored('left', -999, WA); // clamped to top
     expect(leftCorner.rect.y).toBe(WA.y);
-    expect(leftCorner.along).toBe(leftCorner.rect.y + 80); // expanded height / 2
+    expect(leftCorner.along).toBe(leftCorner.rect.y + WIDGET_H / 2); // expanded height / 2
     expect(tabCenterForWindow(leftCorner.rect, 'left').y).toBe(leftCorner.along);
   });
 

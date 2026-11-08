@@ -24,11 +24,11 @@ export function NextPrayer({
   return (
     <section className="mx-4 mb-2 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-b from-[var(--accent-softer)] to-transparent px-4 py-3">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-muted)]">
+        <div className="text-[9px] font-semibold uppercase tracking-[2.5px] text-[#8ba3b5]">
           {t.nextPrayer}
           {next?.isTomorrow ? ` · ${t.countdownTargetTomorrow}` : ''}
         </div>
-        <div className="font-mono text-[11px] text-[var(--text-faint)] tabular-nums">{nextTimeStr}</div>
+        <div className="font-mono text-[11px] text-[#8b95a5] tabular-nums">{nextTimeStr}</div>
       </div>
 
       <div className="mt-1.5 flex items-end gap-2">
@@ -44,7 +44,7 @@ export function NextPrayer({
       </div>
 
       <div
-        className="mt-2 font-mono text-[27px] font-bold leading-none tracking-tight text-[var(--text-primary)] tabular-nums"
+        className="font-caveat mt-1 text-[34px] font-semibold leading-[1.15] tracking-normal text-[var(--text-primary)] tabular-nums"
         dir={language === 'ar' ? 'ltr' : undefined}
       >
         {countdownText}

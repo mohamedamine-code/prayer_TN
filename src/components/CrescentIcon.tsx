@@ -11,7 +11,7 @@ export function CrescentIcon({ className = '' }: { className?: string }): ReactN
       <circle cx="19.8" cy="9" r="0.7" fill="#fbbf24" />
       <defs>
         <linearGradient id="crescent-grad" x1="8" y1="4" x2="18" y2="19">
-          <stop stopColor="#34d399" />
+          <stop stopColor="#38bdf8" />
           <stop offset="1" stopColor="#2dd4bf" />
         </linearGradient>
       </defs>

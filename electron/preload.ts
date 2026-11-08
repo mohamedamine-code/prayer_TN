@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { Settings } from '../src/types/prayer';
 import type { CompletionsStore } from '../src/shared/completions';
 import type { DockState } from '../src/mini/dockLogic';
+import type { StoredLocation } from '../src/shared/location';
 
 export interface SalatiBridge {
   getSettings(): Promise<Settings>;
@@ -9,6 +10,10 @@ export interface SalatiBridge {
   resetSettings(): Promise<Settings>;
   /** Hide the widget to the tray (widget behaviour: "close" = hide). */
   closeWindow(): Promise<void>;
+  /** Iconify the window to the taskbar (native minimize; app keeps running). */
+  minimizeWindow(): Promise<void>;
+  /** Toggle maximize/restore on the principal window. */
+  maximizeToggle(): Promise<void>;
   notify(payload: { key: string; title: string; body: string }): Promise<boolean>;
   clearNotifications(): Promise<boolean>;
   openExternal(url: string): Promise<boolean>;
@@ -33,6 +38,13 @@ export interface SalatiBridge {
   dockCollapseFinish(): Promise<void>;
   /** First paint done with the correct dock phase: safe to show the window. */
   dockReady(): void;
+  /** Automatic location bridge (consent-gated, see electron/location.ts). */
+  getLocation(): Promise<StoredLocation>;
+  setLocationConsent(consent: 'granted' | 'declined'): Promise<StoredLocation>;
+  pushLocationFix(fix: { lat: number; lon: number; accuracy: number; timestamp: number }): Promise<StoredLocation>;
+  setLocationCity(labels: { city: string; country: string }): Promise<StoredLocation>;
+  clearLocation(): Promise<StoredLocation>;
+  onLocationChanged(cb: (state: StoredLocation) => void): () => void;
 }
 
 const bridge: SalatiBridge = {
@@ -40,6 +52,8 @@ const bridge: SalatiBridge = {
   saveSettings: (partial) => ipcRenderer.invoke('settings:set', partial),
   resetSettings: () => ipcRenderer.invoke('settings:reset'),
   closeWindow: () => ipcRenderer.invoke('app:closeWindow'),
+  minimizeWindow: () => ipcRenderer.invoke('app:minimizeWindow'),
+  maximizeToggle: () => ipcRenderer.invoke('app:maximizeToggle'),
   notify: (payload) => ipcRenderer.invoke('app:notify', payload),
   clearNotifications: () => ipcRenderer.invoke('app:clearNotifications'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
@@ -71,6 +85,16 @@ const bridge: SalatiBridge = {
   dockDragEnd: () => ipcRenderer.invoke('dock:dragEnd'),
   dockCollapseFinish: () => ipcRenderer.invoke('dock:collapseFinish'),
   dockReady: () => ipcRenderer.send('mini:ready'),
+  getLocation: () => ipcRenderer.invoke('location:getState'),
+  setLocationConsent: (consent) => ipcRenderer.invoke('location:setConsent', consent),
+  pushLocationFix: (fix) => ipcRenderer.invoke('location:pushFix', fix),
+  setLocationCity: (labels) => ipcRenderer.invoke('location:setCity', labels),
+  clearLocation: () => ipcRenderer.invoke('location:clear'),
+  onLocationChanged: (cb) => {
+    const fn = (_ev: unknown, s: StoredLocation) => cb(s);
+    ipcRenderer.on('location:changed', fn);
+    return () => ipcRenderer.removeListener('location:changed', fn);
+  },
 };
 
 contextBridge.exposeInMainWorld('salati', bridge);

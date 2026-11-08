@@ -2,42 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Same palette as the floating widget (src/mini/mini.css). */
 :root {
-  --bg-body: #04120c;
-  --bg-body-2: #0a1f14;
+  --bg-body: #0b111a;
+  --bg-body-2: #0d1520;
   --bg-card: rgba(255, 255, 255, 0.055);
   --bg-card-hover: rgba(255, 255, 255, 0.1);
   --bg-input: rgba(255, 255, 255, 0.08);
   --border-subtle: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --text-primary: #eef7f0;
-  --text-muted: #93b8a3;
-  --text-faint: #5f8a74;
-  --accent: #34d399;
-  --accent-hover: #6ee7b7;
-  --accent-soft: rgba(52, 211, 153, 0.14);
-  --accent-softer: rgba(52, 211, 153, 0.08);
+  --text-primary: #ffffff;
+  --text-muted: #8b95a5;
+  --text-faint: #6b7f8e;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-soft: rgba(56, 189, 248, 0.14);
+  --accent-softer: rgba(56, 189, 248, 0.12);
   --danger: #f87171;
-  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 10px 32px rgba(0, 0, 0, 0.5);
+  --shell-from: #0d1520;
+  --shell-to: #0b111a;
+  /* Font-size design token (P5): single source for the UI scale of the
+     principal window. The floating widget uses the same factors via
+     PANEL_SCALE in shared/settings.ts and --p-scale in mini.css. */
+  --ui-scale: 1;
+}
+
+html[data-font='small'] {
+  --ui-scale: 0.9;
+}
+html[data-font='big'] {
+  --ui-scale: 1.15;
+}
+
+/* Applied like browser page zoom: layout reflows, nothing is bitmapped, so
+   truncation/responsiveness still work at every size. The Electron window
+   itself is not resized. */
+html {
+  zoom: var(--ui-scale);
 }
 
 [data-theme='light'] {
-  --bg-body: #f2f8f3;
-  --bg-body-2: #e8f1ec;
-  --bg-card: rgba(6, 26, 16, 0.04);
-  --bg-card-hover: rgba(6, 26, 16, 0.08);
-  --bg-input: rgba(6, 26, 16, 0.06);
-  --border-subtle: rgba(6, 26, 16, 0.08);
-  --border-strong: rgba(6, 26, 16, 0.16);
-  --text-primary: #10241a;
-  --text-muted: #3e5c4c;
-  --text-faint: #5c7566;
-  --accent: #047857;
-  --accent-hover: #059669;
-  --accent-soft: rgba(4, 120, 87, 0.14);
-  --accent-softer: rgba(4, 120, 87, 0.07);
+  --bg-body: #e7f0f8;
+  --bg-body-2: #eef6fb;
+  --bg-card: rgba(15, 40, 56, 0.05);
+  --bg-card-hover: rgba(15, 40, 56, 0.09);
+  --bg-input: rgba(15, 40, 56, 0.07);
+  --border-subtle: rgba(15, 40, 56, 0.09);
+  --border-strong: rgba(15, 40, 56, 0.16);
+  --text-primary: #10222e;
+  --text-muted: #55707f;
+  --text-faint: #6d8898;
+  --accent: #0284c7;
+  --accent-hover: #0ea5e9;
+  --accent-soft: rgba(2, 132, 199, 0.14);
+  --accent-softer: rgba(2, 132, 199, 0.12);
   --danger: #dc2626;
-  --shadow-card: 0 6px 18px rgba(6, 26, 16, 0.12);
+  --shadow-card: 0 6px 18px rgba(15, 40, 56, 0.12);
+  --shell-from: #eef6fb;
+  --shell-to: #e7f0f8;
+}
+
+@font-face {
+  font-family: 'Caveat';
+  src: url('../assets/fonts/Caveat.ttf') format('truetype');
+  font-weight: 400 700;
+  font-display: block;
 }
 
 html,
@@ -79,6 +109,13 @@ textarea {
   background-size: 28px 28px;
 }
 
+[data-theme='light'] .pattern-islamic {
+  background-image:
+    radial-gradient(circle at 0 0, rgba(15, 40, 56, 0.05) 1.5px, transparent 1.6px),
+    radial-gradient(circle at 14px 14px, rgba(15, 40, 56, 0.05) 1.5px, transparent 1.6px);
+  background-size: 28px 28px;
+}
+
 [dir='rtl'] .pattern-islamic {
   transform: scaleX(-1);
 }
@@ -94,4 +131,9 @@ textarea {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Handwriting style used by the floating widget (logo, countdown). */
+.font-caveat {
+  font-family: 'Caveat', 'Segoe Script', cursive;
 }

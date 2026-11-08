@@ -1,23 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Moon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { LottieLight } from 'lottie-react';
+import flowIcon from './assets/flowIcon.json';
 import type { AnimationEvent, JSX } from 'react';
-import type { Settings } from '../types/prayer';
+import type { Settings, PrayerKey } from '../types/prayer';
 import type { CompletedMap } from '../shared/completions';
 import { validateCompletionsStore } from '../shared/completions';
 import type { DockEdge, DockState } from './dockLogic';
 import { animFallbackMs, nextPhase, type DockPhase } from './dockPhase';
 import { getCity } from '../data/tunisianCities';
 import { getDict } from '../i18n';
+import { LocationProvider } from '../hooks/useLocation';
 import {
   MINI_CELLS,
   buildMiniEntries,
+  formatMiniClock,
   formatMiniCountdown,
   formatMiniTime,
   getNextMini,
 } from './miniLogic';
 import { usePrayerTimes } from '../hooks/usePrayerTimes';
 import { usePrayerCountdown } from '../hooks/usePrayerCountdown';
+import { useIqamaTimes } from '../hooks/useIqamaTimes';
+import { useLocation } from '../hooks/useLocation';
 import { TUNIS_TZ, wallClockInTz } from '../logic/times';
+import { applyFontSize, applyTheme } from '../logic/theme';
 
 /** Observe settings changes coming from the main app (read-only). */
 function useMiniSettings(): Settings | null {
@@ -136,7 +143,8 @@ export function MiniWidget(): JSX.Element {
     }
   }, [dock]);
   if (!dock) return <div className="dock-root" />;
-  return <DockSurface dock={dock} />;
+  // The mini window never drives the watcher: it mirrors main-process state.
+  return <LocationProvider><DockSurface dock={dock} /></LocationProvider>;
 }
 
 function rootClass(edge: DockEdge): string {
@@ -146,8 +154,15 @@ function rootClass(edge: DockEdge): string {
 
 function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   const settings = useMiniSettings();
-  const city = getCity(settings?.cityId ?? 'tunis');
-  const times = usePrayerTimes({
+  const loc = useLocation();
+  /* Mirror the shared appearance tokens (theme + font size, P5) so the
+     floating widget always matches the principal widget instantly. */
+  useEffect(() => {
+    if (!settings) return;
+    applyTheme(settings.theme);
+    applyFontSize(settings.fontSize);
+  }, [settings]);
+  const city = getCity(settings?.cityId ?? 'tunis');  const times = usePrayerTimes({
     city,
     calculationMethod: settings?.calculationMethod ?? 18,
     asrMadhab: settings?.asrMadhab ?? 'standard',
@@ -155,11 +170,32 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   const countdown = usePrayerCountdown(times.today, times.tomorrow);
   const completedToday = useMiniCompletions(times.today?.dateKey);
   const t = getDict(settings?.language ?? 'fr');
+  const iqama = useIqamaTimes(
+    times.today?.timings,
+    settings?.iqamaDelays ?? {},
+    settings?.clockFormat,
+  );
 
   const nextMini = useMemo(
     () => getNextMini(countdown.nowMs, buildMiniEntries(times.today), buildMiniEntries(times.tomorrow)?.find((e) => e.key === 'Fajr')?.at ?? null),
     [countdown.nowMs, times.today, times.tomorrow],
   );
+
+  /* Dragging (P3): raw pointermove can fire far faster than the display frame
+     rate (especially after a DPI/resolution change, where the move class
+     becomes expensive). Coalesce to at most ONE IPC per animation frame with
+     the latest pointer position instead of sending every raw event. No React
+     state is touched during the drag, and the main process only persists the
+     position once, when the drag ends. */
+  const dragPos = useRef<{ x: number; y: number } | null>(null);
+  const dragRaf = useRef(0);
+  const clearDragRaf = () => {
+    if (dragRaf.current) {
+      cancelAnimationFrame(dragRaf.current);
+      dragRaf.current = 0;
+    }
+  };
+  useEffect(() => clearDragRaf, []);
 
   /* Expansion lifecycle. The first paint adopts the current state without any
      animation (no flash on startup / restore); later changes animate. */
@@ -202,14 +238,24 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   if (!settings) return <div className={rootClass(dock.edge)} />;
   const clockFormat = settings.clockFormat;
   const clock = wallClockInTz(TUNIS_TZ);
-  const nowHHMM = formatMiniTime(
-    `${String(clock.h).padStart(2, '0')}:${String(clock.m).padStart(2, '0')}`,
-    clockFormat,
-  );
+  const nowHHMMSS = formatMiniClock(clock.h, clock.m, clock.s, clockFormat);
   const cityName =
     settings.language === 'ar' ? city.nameAr : settings.language === 'en' ? city.nameEn : city.nameFr;
   const remaining = nextMini ? nextMini.at - countdown.nowMs : 0;
   const chev = chevronFor(dock.edge, dock.expanded);
+
+  /* Location indicator states (floating widget):
+     📍 active · ⏳ detecting · 🔒 permission required · ⚠️ unavailable */
+  const miniCity =
+    loc.status === 'active' && loc.placeLabel
+      ? `📍 ${loc.placeLabel}`
+      : loc.status === 'detecting'
+        ? `⏳ ${t.locDetecting}`
+        : (loc.status === 'prompt' || loc.status === 'denied')
+          ? `🔒 ${t.locLocked}`
+          : loc.status === 'unavailable'
+            ? `⚠️ ${t.locUnavailable}`
+            : cityName;
 
   return (
     <div className={rootClass(dock.edge)} onContextMenu={() => void window.salati?.openMiniMenu()}>
@@ -223,12 +269,25 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
           void window.salati?.dockDragStart(e.screenX, e.screenY);
         }}
         onPointerMove={(e) => {
-          if (e.buttons & 1) void window.salati?.dockDragMove(e.screenX, e.screenY);
+          if (!(e.buttons & 1)) return;
+          dragPos.current = { x: e.screenX, y: e.screenY };
+          if (dragRaf.current) return;
+          dragRaf.current = requestAnimationFrame(() => {
+            dragRaf.current = 0;
+            const p = dragPos.current;
+            if (p) void window.salati?.dockDragMove(p.x, p.y);
+          });
         }}
-        onPointerUp={() => void window.salati?.dockDragEnd()}
-        onPointerCancel={() => void window.salati?.dockDragEnd()}
+        onPointerUp={() => {
+          clearDragRaf();
+          void window.salati?.dockDragEnd();
+        }}
+        onPointerCancel={() => {
+          clearDragRaf();
+          void window.salati?.dockDragEnd();
+        }}
       >
-        <Moon className="dock-moon" />
+        <LottieLight className="dock-anim" src={flowIcon} loop autoplay />
         <button
           type="button"
           className="dock-chev"
@@ -247,8 +306,8 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
         <div className="mini-root">
           <div className="mini-header">
             <span className="mini-logo">Salati</span>
-            <span className="mini-clock">{nowHHMM}</span>
-            <span className="mini-city">{cityName}</span>
+            <span className="mini-clock">{nowHHMMSS}</span>
+            <span className="mini-city" title={miniCity}>{miniCity}</span>
             <button
               type="button"
               className="mini-close"
@@ -277,6 +336,9 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
               // Sunrise is informational only: never part of the checklist.
               const isTrackable = cell.key !== 'Sunrise';
               const done = isTrackable && completedToday[cell.key as keyof CompletedMap] === true;
+              // Manual Iqama: only prayers with a configured delay get a time.
+              const configured = isTrackable && iqama.isConfigured(cell.key as PrayerKey);
+              const iqRaw = configured ? iqama.times[cell.key as PrayerKey] : undefined;
               return (
                 <div key={cell.key} className={active ? 'mini-cell active' : 'mini-cell'}>
                   <div className="mini-cell-abbr">
@@ -288,6 +350,13 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
                     )}
                   </div>
                   <div className="mini-cell-time">{raw ? formatMiniTime(raw, clockFormat) : '--:--'}</div>
+                  <div
+                    className="mini-cell-iqama"
+                    data-configured={configured ? 'true' : 'false'}
+                    title={configured ? t.iqama : `${t.iqama} — ${t.iqamaNotConfigured}`}
+                  >
+                    {iqRaw ?? '—'}
+                  </div>
                 </div>
               );
             })}

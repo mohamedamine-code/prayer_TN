@@ -58,15 +58,14 @@ export function getNextMini(
   return null;
 }
 
-/** "1h 5m" over an hour, "4m 20s" under an hour, "45s" under a minute. */
+/** Countdown as "HH:MM:SS" (two digits per unit), clamped at 00:00:00. */
 export function formatMiniCountdown(msRemaining: number): string {
   const total = Math.max(0, Math.floor(msRemaining / 1000));
-  if (total < 60) return `${total}s`;
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 /** HH:MM string in 12h or 24h format (mini widget header + cells). */
@@ -81,4 +80,20 @@ export function formatMiniTime(hhmmSource: string, clockFormat: ClockFormat): st
     return `${String(h12)}:${m} ${suffix}`;
   }
   return `${String(h).padStart(2, '0')}:${m}`;
+}
+
+/** Live clock with seconds: "HH:MM:SS" (24h) or "h:MM:SS AM/PM" (12h). */
+export function formatMiniClock(
+  h: number,
+  m: number,
+  s: number,
+  clockFormat: ClockFormat,
+): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  if (clockFormat === '12h') {
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${pad(m)}:${pad(s)} ${suffix}`;
+  }
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }

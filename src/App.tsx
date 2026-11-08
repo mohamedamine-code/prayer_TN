@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSettings } from './hooks/useSettings';
+import { useLocation } from './hooks/useLocation';
 import { usePrayerTimes } from './hooks/usePrayerTimes';
 import { usePrayerCountdown, useTunisClock } from './hooks/usePrayerCountdown';
 import { usePrayerNotifications } from './hooks/usePrayerNotifications';
-import { getCity } from './data/tunisianCities';
+import { useIqamaTimes } from './hooks/useIqamaTimes';
 import { getDict } from './i18n';
-import type { PrayerKey, ThemeMode } from './types/prayer';
+import type { PrayerKey } from './types/prayer';
 import { loadCompleted, saveCompleted, type CompletedMap } from './services/storage';
 import { Header } from './components/Header';
 import { DateDisplay } from './components/DateDisplay';
@@ -13,21 +14,15 @@ import { NextPrayer } from './components/NextPrayer';
 import { PrayerList } from './components/PrayerList';
 import { Footer } from './components/Footer';
 import { SettingsPanel } from './components/SettingsPanel';
+import { LocationPermissionDialog } from './components/LocationPermissionDialog';
 import { ErrorView } from './components/ErrorView';
 import { buildPrayerTimestamps } from './logic/times';
-
-function applyTheme(theme: ThemeMode): void {
-  const root = document.documentElement;
-  let resolved: 'dark' | 'light' = theme === 'system' ? 'dark' : theme;
-  if (theme === 'system' && window.matchMedia) {
-    resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  }
-  root.dataset.theme = resolved;
-}
+import { applyFontSize, applyTheme } from './logic/theme';
 
 export default function App(): JSX.Element {
   const { settings, ready } = useSettings();
   const { language, theme, opacity } = settings;
+  const loc = useLocation();
 
   useEffect(() => {
     applyTheme(theme);
@@ -40,11 +35,16 @@ export default function App(): JSX.Element {
   }, [theme]);
 
   useEffect(() => {
+    applyFontSize(settings.fontSize);
+  }, [settings.fontSize]);
+
+  useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   }, [language]);
 
-  const city = getCity(settings.cityId);
+  // Real coordinates when automatic location is active, else manual city.
+  const city = loc.activeCity;
   const times = usePrayerTimes({
     city,
     calculationMethod: settings.calculationMethod,
@@ -53,6 +53,8 @@ export default function App(): JSX.Element {
 
   const countdown = usePrayerCountdown(times.today, times.tomorrow);
   const clock = useTunisClock();
+
+  const iqama = useIqamaTimes(times.today?.timings, settings.iqamaDelays, settings.clockFormat);
 
   usePrayerNotifications(settings, times.today, times.tomorrow, countdown.nowMs);
 
@@ -152,6 +154,12 @@ export default function App(): JSX.Element {
                 onToggleCompleted={toggleCompleted}
                 language={language}
                 clockFormat={settings.clockFormat}
+                iqama={{
+                  enabled: iqama.enabled,
+                  notConfiguredHint: iqama.notConfigured,
+                  times: iqama.times,
+                  isConfigured: iqama.isConfigured,
+                }}
               />
             )}
             {times.fromCache && offlineMode && (
@@ -166,6 +174,7 @@ export default function App(): JSX.Element {
       <Footer lastUpdated={times.lastUpdated} refreshing={times.refreshing} online={!offlineMode} />
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      <LocationPermissionDialog />
     </Shell>
   );
 }
@@ -173,7 +182,7 @@ export default function App(): JSX.Element {
 function Shell({ opacity, children }: { opacity: number; children: ReactNode }): JSX.Element {
   return (
     <div
-      className="relative h-full w-full flex flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-gradient-to-b from-[#0a2016] to-[#04120c] text-[var(--text-primary)] shadow-2xl"
+      className="relative h-full w-full flex flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-gradient-to-b from-[var(--shell-from)] to-[var(--shell-to)] text-[var(--text-primary)] shadow-2xl"
       id="salati-shell"
     >
       <div
@@ -186,5 +195,3 @@ function Shell({ opacity, children }: { opacity: number; children: ReactNode }):
     </div>
   );
 }
-
-export { applyTheme };

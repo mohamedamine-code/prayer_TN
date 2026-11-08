@@ -5,6 +5,20 @@
   font-display: block;
 }
 
+/* Font-size design token (P5): the expanded panel scales uniformly — the main
+   process grows the window by the same factor (PANEL_SCALE in shared
+   settings), so text and box always match and nothing clips. The dock tab
+   itself keeps its designed 40x56 size so snap geometry stays exact. */
+:root {
+  --p-scale: 1;
+}
+html[data-font='small'] {
+  --p-scale: 0.9;
+}
+html[data-font='big'] {
+  --p-scale: 1.15;
+}
+
 html,
 body,
 #mini-root {
@@ -20,6 +34,44 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ===== Theme tokens (P5). Same palette as src/styles/globals.css. ===== */
+:root {
+  --mini-bg: linear-gradient(165deg, #0d1520 0%, #0b111a 100%);
+  --mini-border: rgba(255, 255, 255, 0.1);
+  --mini-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  --mini-text: #ffffff;
+  --mini-text-muted: #8b95a5;
+  --mini-text-faint: #6b7f8e;
+  --mini-cell-border: rgba(255, 255, 255, 0.06);
+  --mini-cell-cells-border: rgba(255, 255, 255, 0.08);
+  --mini-accent: #38bdf8;
+  --mini-iqama: #7ee2c4;
+  --mini-check: #34d399;
+  --mini-tab-bg: linear-gradient(180deg, #0e1729 0%, #0b111a 100%);
+  --mini-tab-border: rgba(255, 255, 255, 0.12);
+  --mini-tab-hover: linear-gradient(180deg, #142238 0%, #0e1626 100%);
+  --mini-chev-bg: rgba(255, 255, 255, 0.07);
+  --mini-chev-hover: rgba(56, 189, 248, 0.3);
+}
+html[data-theme='light'] {
+  --mini-bg: linear-gradient(165deg, #f3f9fd 0%, #e7f0f8 100%);
+  --mini-border: rgba(15, 40, 56, 0.14);
+  --mini-shadow: 0 10px 32px rgba(15, 40, 56, 0.25);
+  --mini-text: #10222e;
+  --mini-text-muted: #55707f;
+  --mini-text-faint: #7d93a1;
+  --mini-cell-border: rgba(15, 40, 56, 0.08);
+  --mini-cell-cells-border: rgba(15, 40, 56, 0.1);
+  --mini-accent: #0284c7;
+  --mini-iqama: #0f766e;
+  --mini-check: #059669;
+  --mini-tab-bg: linear-gradient(180deg, #ffffff 0%, #eef5fb 100%);
+  --mini-tab-border: rgba(15, 40, 56, 0.18);
+  --mini-tab-hover: linear-gradient(180deg, #ffffff 0%, #e2edf7 100%);
+  --mini-chev-bg: rgba(15, 40, 56, 0.08);
+  --mini-chev-hover: rgba(2, 132, 199, 0.25);
+}
+
 .mini-root {
   -webkit-app-region: no-drag;
   width: 100%;
@@ -28,11 +80,11 @@ body {
   padding: 10px 12px 8px;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, #0d1520 0%, #0b111a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--mini-bg);
+  border: 1px solid var(--mini-border);
   border-radius: 10px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
-  color: #ffffff;
+  box-shadow: var(--mini-shadow);
+  color: var(--mini-text);
   font-family: 'Segoe UI', system-ui, sans-serif;
   overflow: hidden;
 }
@@ -88,16 +140,16 @@ body {
   justify-content: center;
   gap: 2px;
   touch-action: none;
-  background: linear-gradient(180deg, #0e1729 0%, #0b111a 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 4px 14px rgba(0, 0, 0, 0.45);
+  background: var(--mini-tab-bg);
+  box-shadow: inset 0 0 0 1px var(--mini-tab-border), 0 4px 14px rgba(0, 0, 0, 0.45);
   transition: background 0.15s;
 }
 /* NOTE: app-region: drag is broken/unstable on transparent frameless windows
    (the native move loop swallows input). Dragging is handled with pointer
-   capture + IPC (dock:dragStart/Move/End) in MiniWidget.tsx instead; every
-   .dock-* rule below therefore keeps no-drag semantics. */
+   capture + rAF-batched IPC (dock:dragStart/Move/End) in MiniWidget.tsx
+   instead; every .dock-* rule below therefore keeps no-drag semantics. */
 .dock-tab:hover {
-  background: linear-gradient(180deg, #142238 0%, #0e1626 100%);
+  background: var(--mini-tab-hover);
 }
 /* Rounded on the side facing the desktop interior */
 .dock-left .dock-tab {
@@ -112,11 +164,11 @@ body {
 .dock-bottom .dock-tab {
   border-radius: 8px 8px 0 0;
 }
-.dock-moon {
-  width: 14px;
-  height: 14px;
-  color: #38bdf8;
+.dock-anim {
+  width: 18px;
+  height: 18px;
   opacity: 0.9;
+  pointer-events: none;
 }
 .dock-chev {
   width: 26px;
@@ -126,15 +178,15 @@ body {
   justify-content: center;
   border: none;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.07);
-  color: #cbd5e1;
+  background: var(--mini-chev-bg);
+  color: var(--mini-text-muted);
   cursor: pointer;
   padding: 0;
   transition: background 0.15s, color 0.15s;
 }
 .dock-chev:hover {
-  background: rgba(56, 189, 248, 0.3);
-  color: #ffffff;
+  background: var(--mini-chev-hover);
+  color: var(--mini-text);
 }
 .dock-chev svg {
   width: 15px;
@@ -142,10 +194,11 @@ body {
 }
 .mini-main {
   width: 320px;
-  height: 160px;
+  height: 176px;
   flex: none;
   display: flex;
   -webkit-app-region: no-drag;
+  zoom: var(--p-scale);
 }
 /* Reserve the panel's exact footprint next to the (absolutely pinned) tab in
    every window size; the panel occupies its space even while hidden so the
@@ -175,7 +228,7 @@ body {
   font-family: 'Caveat', 'Segoe Script', cursive;
   font-weight: 700;
   font-size: 21px;
-  color: #ffffff;
+  color: var(--mini-text);
   letter-spacing: 0.5px;
 }
 .mini-clock {
@@ -185,7 +238,7 @@ body {
 }
 .mini-city {
   font-size: 11px;
-  color: #8b95a5;
+  color: var(--mini-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -196,14 +249,14 @@ body {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: #8b95a5;
+  color: var(--mini-text-muted);
   font-size: 14px;
   line-height: 1;
   padding: 3px 5px;
   cursor: pointer;
 }
 .mini-close:hover {
-  color: #ffffff;
+  color: var(--mini-text);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -216,14 +269,14 @@ body {
   font-weight: 600;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: #8ba3b5;
+  color: var(--mini-text-muted);
 }
 .mini-countdown {
   font-family: 'Caveat', 'Segoe Script', cursive;
   font-size: 34px;
   font-weight: 600;
   line-height: 1.15;
-  color: #ffffff;
+  color: var(--mini-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -232,29 +285,29 @@ body {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   margin-top: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--mini-cell-cells-border);
 }
 .mini-cell {
   text-align: center;
   padding: 5px 0 3px;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid var(--mini-cell-border);
   border-radius: 3px;
 }
 .mini-cell:first-child {
   border-left: none;
 }
 .mini-cell.active {
-  background: rgba(56, 189, 248, 0.12);
+  background: var(--mini-chev-hover);
 }
 .mini-cell-abbr {
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 1.2px;
-  color: #8b95a5;
+  color: var(--mini-text-muted);
   text-transform: uppercase;
 }
 .mini-cell-check {
-  color: #34d399;
+  color: var(--mini-check);
   font-size: 8px;
   margin-left: 2px;
   text-transform: none;
@@ -266,14 +319,41 @@ body {
   font-size: 11.5px;
   margin-top: 1px;
 }
+/* Iqama (congregation) time below each prayer cell; '—' when unconfigured. */
+.mini-cell-iqama {
+  font-family: Consolas, 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  line-height: 1.2;
+  margin-top: 1px;
+  color: var(--mini-iqama);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+.mini-cell:not(.active) .mini-cell-iqama:not([data-configured='true']) {
+  color: var(--mini-text-faint);
+}
+.mini-cell-iqama-loading {
+  color: var(--mini-text-muted);
+  animation: miniIqamaPulse 1.2s ease-in-out infinite;
+}
+@keyframes miniIqamaPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 .mini-cell.active .mini-cell-abbr,
 .mini-cell.active .mini-cell-time {
-  color: #38bdf8;
+  color: var(--mini-accent);
+}
+.mini-cell.active .mini-cell-iqama[data-configured='true'] {
+  color: var(--mini-accent);
 }
 
 .mini-error {
   font-size: 10px;
-  color: #8b95a5;
+  color: var(--mini-text-muted);
   margin-top: 14px;
   text-align: center;
 }

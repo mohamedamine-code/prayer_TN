@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildMiniEntries,
+  formatMiniClock,
   formatMiniCountdown,
   formatMiniTime,
   getNextMini,
@@ -63,16 +64,20 @@ describe('getNextMini', () => {
 });
 
 describe('formatMiniCountdown', () => {
-  it('shows hours and minutes over 1h', () => {
-    expect(formatMiniCountdown(60 * 60_000 + 5 * 60_000)).toBe('1h 5m');
-    expect(formatMiniCountdown(3 * 3600_000)).toBe('3h');
+  it('always renders HH:MM:SS with two digits per unit', () => {
+    expect(formatMiniCountdown(60 * 60_000 + 5 * 60_000)).toBe('01:05:00');
+    expect(formatMiniCountdown(4 * 60_000 + 20_000)).toBe('00:04:20');
   });
-  it('shows minutes and seconds under 1h', () => {
-    expect(formatMiniCountdown(4 * 60_000 + 20_000)).toBe('4m 20s');
+  it('clamps negatives to 00:00:00', () => {
+    expect(formatMiniCountdown(-5_000)).toBe('00:00:00');
   });
-  it('shows bare seconds under 1 minute and clamps negatives', () => {
-    expect(formatMiniCountdown(45_000)).toBe('45s');
-    expect(formatMiniCountdown(-5_000)).toBe('0s');
+});
+
+describe('formatMiniClock', () => {
+  it('shows seconds in 24h and 12h formats', () => {
+    expect(formatMiniClock(17, 7, 5, '24h')).toBe('17:07:05');
+    expect(formatMiniClock(17, 7, 5, '12h')).toBe('5:07:05 PM');
+    expect(formatMiniClock(0, 3, 42, '12h')).toBe('12:03:42 AM');
   });
 });
 

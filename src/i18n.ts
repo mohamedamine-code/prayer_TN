@@ -29,6 +29,10 @@ export interface Dict {
   themeDark: string;
   themeLight: string;
   themeSystem: string;
+  fontSize: string;
+  fontSmall: string;
+  fontMedium: string;
+  fontBig: string;
   opacity: string;
   resetSettings: string;
   about: string;
@@ -41,6 +45,7 @@ export interface Dict {
   methodTunisia: string;
   close: string;
   minimize: string;
+  maximizeRestore: string;
   showFloatingWidget: string;
   dockExpand: string;
   dockCollapse: string;
@@ -55,6 +60,46 @@ export interface Dict {
   noData: string;
   countdownTargetTomorrow: string;
   sunrise: string;
+  iqama: string;
+  iqamaConfig: string;
+  iqamaDelayHint: string;
+  iqamaNotConfigured: string;
+  iqamaResetDefaults: string;
+  minutes: string;
+  plusDelay: string;
+  minusDelay: string;
+  iqamaUnavailable: string;
+  locSection: string;
+  locToggle: string;
+  locPermission: string;
+  locPermGranted: string;
+  locPermDeclined: string;
+  locPermNotAsked: string;
+  locNever: string;
+  locRefresh: string;
+  locLastCity: string;
+  locLastUpdate: string;
+  locManualBtn: string;
+  locManualHint: string;
+  locClear: string;
+  locPermTitle: string;
+  locPermBody: string;
+  locPermPrivacy: string;
+  locPermLater: string;
+  locAllow: string;
+  locNotNow: string;
+  locActive: string;
+  locDetecting: string;
+  locLocked: string;
+  locUnavailable: string;
+  locErrPermission: string;
+  locErrUnavailable: string;
+  locErrTimeout: string;
+  locErrUnsupported: string;
+  locWindowsHint: string;
+  locDenyTitle: string;
+  locDenyBody: string;
+  locRetry: string;
 }
 
 const fr: Dict = {
@@ -87,6 +132,10 @@ const fr: Dict = {
   themeDark: 'Sombre',
   themeLight: 'Clair',
   themeSystem: 'Système',
+  fontSize: 'Taille du texte',
+  fontSmall: 'Petite',
+  fontMedium: 'Moyenne',
+  fontBig: 'Grande',
   opacity: 'Opacité',
   resetSettings: 'Réinitialiser les paramètres',
   about: 'À propos',
@@ -99,6 +148,7 @@ const fr: Dict = {
   methodTunisia: 'Ministère des Affaires religieuses — Tunisie (18° / 18°)',
   close: 'Fermer',
   minimize: 'Masquer dans la barre des tâches',
+  maximizeRestore: 'Agrandir / Restaurer',
   showFloatingWidget: 'Widget flottant sur le bureau',
   dockExpand: 'Afficher le widget',
   dockCollapse: "Réduire dans l'icône",
@@ -113,6 +163,52 @@ const fr: Dict = {
   noData: 'Aucun horaire disponible. Actualisez lorsque vous serez en ligne.',
   countdownTargetTomorrow: 'قبل الفجر (demain)',
   sunrise: 'Lever du soleil',
+  iqama: 'Iqama',
+  iqamaConfig: "Configuration de l'Iqama",
+  iqamaDelayHint:
+    "Définissez le délai (en minutes) après l'adhan pour chaque prière : Iqama = heure de la prière + délai. Vide = Iqama non configurée (aucune valeur inventée).",
+  iqamaNotConfigured: 'non configurée',
+  iqamaResetDefaults: 'Réinitialiser les délais',
+  minutes: 'min',
+  plusDelay: 'Augmenter le délai',
+  minusDelay: 'Réduire le délai',
+  iqamaUnavailable: 'Iqama indisponible',
+  locSection: 'Localisation automatique',
+  locToggle: 'Localisation automatique',
+  locPermission: 'Statut de permission',
+  locPermGranted: 'Autorisée',
+  locPermDeclined: 'Refusée',
+  locPermNotAsked: 'Non demandée',
+  locNever: 'jamais',
+  locRefresh: 'Actualiser ma position',
+  locLastCity: 'Dernière position détectée',
+  locLastUpdate: 'Dernière mise à jour',
+  locManualBtn: 'Utiliser la sélection manuelle de ville',
+  locManualHint:
+    'Quand la localisation automatique est désactivée, la prière utilise la ville choisie ci-dessus.',
+  locClear: 'Effacer la position enregistrée',
+  locPermTitle: '📍 Activer la localisation automatique',
+  locPermBody:
+    'Salati Tunisia souhaite accéder à votre position pour calculer des horaires de prière précis selon votre emplacement actuel.',
+  locPermPrivacy:
+    'Vos coordonnées restent sur cet appareil et ne servent qu’au calcul des horaires.',
+  locPermLater: 'Vous pourrez activer la localisation plus tard dans Paramètres.',
+  locAllow: 'Autoriser la localisation',
+  locNotNow: 'Pas maintenant',
+  locActive: 'Position active',
+  locDetecting: 'Détection de la position…',
+  locLocked: 'Localisation : autorisation requise',
+  locUnavailable: 'Position indisponible',
+  locErrPermission: "L'accès à la localisation a été refusé.",
+  locErrUnavailable: 'La position n’a pas pu être déterminée. Réessayez plus tard.',
+  locErrTimeout: 'Détection de position trop lente. Réessayez.',
+  locErrUnsupported: 'La géolocalisation n’est pas prise en charge sur cet appareil.',
+  locWindowsHint:
+    'Vérifiez aussi Windows : Paramètres → Confidentialité → Localisation (service activé + autorisé pour les applications).',
+  locDenyTitle: 'Localisation refusée',
+  locDenyBody:
+    'Les horaires utilisent la ville sélectionnée manuellement. Vous pouvez réessayer la localisation automatique ou autoriser la géolocalisation dans les réglages Windows.',
+  locRetry: 'Réessayer la localisation',
 };
 
 const ar: Dict = {
@@ -145,6 +241,10 @@ const ar: Dict = {
   themeDark: 'داكن',
   themeLight: 'فاتح',
   themeSystem: 'النظام',
+  fontSize: 'حجم الخط',
+  fontSmall: 'صغير',
+  fontMedium: 'متوسط',
+  fontBig: 'كبير',
   opacity: 'الشفافية',
   resetSettings: 'إعادة تعيين الإعدادات',
   about: 'حول التطبيق',
@@ -157,6 +257,7 @@ const ar: Dict = {
   methodTunisia: 'وزارة الشؤون الدينية — تونس (18° / 18°)',
   close: 'إغلاق',
   minimize: 'إخفاء',
+  maximizeRestore: 'تكبير / استعادة',
   showFloatingWidget: 'الودجت العائمة على سطح المكتب',
   dockExpand: 'إظهار الودجت',
   dockCollapse: 'طَيّ في الأيقونة',
@@ -171,6 +272,47 @@ const ar: Dict = {
   noData: 'لا توجد أوقات متاحة. قم بالتحديدزد بعد الاتصال بالإنترنت.',
   countdownTargetTomorrow: 'قبل الفجر (غدًا)',
   sunrise: 'الشروق',
+  iqama: 'الإقامة',
+  iqamaConfig: 'إعداد الإقامة',
+  iqamaDelayHint:
+    'حدّد مهلة التأخير بالدقائق بعد الأذان لكل صلاة: الإقامة = وقت الصلاة + التأخير. فارغ = الإقامة غير مضبوطة (لا تُختلق أي قيمة).',
+  iqamaNotConfigured: 'غير مضبوطة',
+  iqamaResetDefaults: 'إعادة تعيين التأخيرات',
+  minutes: 'د',
+  plusDelay: 'زيادة التأخير',
+  minusDelay: 'تقليص التأخير',
+  iqamaUnavailable: 'الإقامة غير متوفرة',
+  locSection: 'الموقع التلقائي',
+  locToggle: 'الموقع التلقائي',
+  locPermission: 'حالة الإذن',
+  locPermGranted: 'مسموح',
+  locPermDeclined: 'مرفوض',
+  locPermNotAsked: 'لم يُطلب',
+  locNever: 'أبدًا',
+  locRefresh: 'تحديث موقعي',
+  locLastCity: 'آخر موقع تم اكتشافه',
+  locLastUpdate: 'آخر تحديث',
+  locManualBtn: 'استخدام اختيار المدينة اليدوي',
+  locManualHint: 'عند تعطيل الموقع التلقائي تُستخدم المدينة المحددة أعلاه لحساب الأوقات.',
+  locClear: 'مسح الموقع المحفوظ',
+  locPermTitle: '📍 تمكين الموقع التلقائي',
+  locPermBody: 'يرغب تطبيق صلاتي تونس في الوصول إلى موقعك لحساب أوقات الصلاة بدقة حسب موقعك الحالي.',
+  locPermPrivacy: 'تبقى إحداثياتك على هذا الجهاز وتُستخدم فقط لحساب أوقات الصلاة',
+  locPermLater: 'يمكنك تمكين الموقع لاحقًا من الإعدادات.',
+  locAllow: 'السماح بالموقع',
+  locNotNow: 'ليس الآن',
+  locActive: 'الموقع نشط',
+  locDetecting: 'جارٍ تحديد الموقع…',
+  locLocked: 'الموقع: مطلوب الإذن',
+  locUnavailable: 'الموقع غير متوفر',
+  locErrPermission: 'تم رفض الوصول إلى الموقع.',
+  locErrUnavailable: 'تعذر تحديد الموقع. أعد المحاولة لاحقًا.',
+  locErrTimeout: 'تحديد الموقع كان بطيئًا جدًا. أعد المحاولة.',
+  locErrUnsupported: 'تحديد الموقع غير مدعوم على هذا الجهاز.',
+  locWindowsHint: 'تحقق أيضًا من ويندوز: الإعدادات ← الخصوصية ← الموقع (تفعيل الخدمة والسماح للتطبيقات).',
+  locDenyTitle: 'تم رفض الموقع',
+  locDenyBody: 'تُستخدم المدينة المحددة يدويًا في الحساب. يمكنك إعادة محاولة الموقع التلقائي أو السماح بتحديد الموقع من إعدادات ويندوز.',
+  locRetry: 'إعادة محاولة تحديد الموقع',
 };
 
 const en: Dict = {
@@ -203,6 +345,10 @@ const en: Dict = {
   themeDark: 'Dark',
   themeLight: 'Light',
   themeSystem: 'System',
+  fontSize: 'Text size',
+  fontSmall: 'Small',
+  fontMedium: 'Medium',
+  fontBig: 'Big',
   opacity: 'Opacity',
   resetSettings: 'Reset settings',
   about: 'About',
@@ -215,6 +361,7 @@ const en: Dict = {
   methodTunisia: 'Ministry of Religious Affairs — Tunisia (18° / 18°)',
   close: 'Close',
   minimize: 'Hide widget',
+  maximizeRestore: 'Maximize / Restore',
   showFloatingWidget: 'Show floating widget',
   dockExpand: 'Show widget',
   dockCollapse: 'Collapse into icon',
@@ -229,6 +376,52 @@ const en: Dict = {
   noData: 'No prayer times available. Refresh once you are online.',
   countdownTargetTomorrow: 'before Fajr (tomorrow)',
   sunrise: 'Sunrise',
+  iqama: 'Iqama',
+  iqamaConfig: 'Iqama Configuration',
+  iqamaDelayHint:
+    'Set the delay (minutes) after the adhan for each prayer: Iqama = prayer time + delay. Empty = Iqama not configured (no value is invented).',
+  iqamaNotConfigured: 'not configured',
+  iqamaResetDefaults: 'Reset delays',
+  minutes: 'min',
+  plusDelay: 'Increase delay',
+  minusDelay: 'Decrease delay',
+  iqamaUnavailable: 'Iqama unavailable',
+  locSection: 'Automatic location',
+  locToggle: 'Automatic location',
+  locPermission: 'Permission status',
+  locPermGranted: 'Granted',
+  locPermDeclined: 'Denied',
+  locPermNotAsked: 'Not asked yet',
+  locNever: 'never',
+  locRefresh: 'Refresh my location',
+  locLastCity: 'Last detected location',
+  locLastUpdate: 'Last update',
+  locManualBtn: 'Use manual city selection',
+  locManualHint:
+    'When automatic location is disabled, prayers use the city selected above.',
+  locClear: 'Clear stored location',
+  locPermTitle: '📍 Enable automatic location',
+  locPermBody:
+    'Salati Tunisia would like to access your location to calculate accurate prayer times for your current position.',
+  locPermPrivacy:
+    'Your coordinates stay on this device and are used only to calculate prayer times.',
+  locPermLater: 'You can enable location later from Settings.',
+  locAllow: 'Allow Location',
+  locNotNow: 'Not Now',
+  locActive: 'Location active',
+  locDetecting: 'Detecting location…',
+  locLocked: 'Location permission required',
+  locUnavailable: 'Location unavailable',
+  locErrPermission: 'Location access was denied.',
+  locErrUnavailable: 'Your position could not be determined. Try again later.',
+  locErrTimeout: 'Position detection was too slow. Try again.',
+  locErrUnsupported: 'Geolocation is not supported on this device.',
+  locWindowsHint:
+    'Also check Windows: Settings → Privacy → Location (service on + allowed for apps).',
+  locDenyTitle: 'Location denied',
+  locDenyBody:
+    'Prayer times use the manually selected city. You can retry automatic location or allow geolocation in Windows settings.',
+  locRetry: 'Retry location',
 };
 
 export const DICTS: Record<Language, Dict> = { fr, ar, en };

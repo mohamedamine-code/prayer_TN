@@ -20,16 +20,18 @@ export interface Rect {
 /** Dock tab size (identical for all four edges: a small tab sideways). */
 export const ICON_W = 40;
 export const ICON_H = 56;
-/** Expanded widget content size. */
+/** Expanded widget content size (extra height fits the Iqama row under each cell). */
 export const WIDGET_W = 320;
-export const WIDGET_H = 160;
+export const WIDGET_H = 176;
 /** Keep-away margins so no pixel of the tab sits outside the work area. */
 export const EDGE_INSET = 2;
 
-/** Expanded window dimensions per orientation (tab + widget, seamless). */
-export function expandedSize(edge: DockEdge): { width: number; height: number } {
-  if (edge === 'left' || edge === 'right') return { width: ICON_W + WIDGET_W, height: WIDGET_H };
-  return { width: WIDGET_W, height: ICON_H + WIDGET_H };
+/** Collapse tab size is fixed; the expanded PANEL scales with the font-size
+ *  setting (scale = 1 keeps the designed 320x176 content box). */
+export function expandedSize(edge: DockEdge, scale: number = 1): { width: number; height: number } {
+  const s = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  if (edge === 'left' || edge === 'right') return { width: ICON_W + WIDGET_W * s, height: WIDGET_H * s };
+  return { width: WIDGET_W * s, height: ICON_H + WIDGET_H * s };
 }
 
 /** Edge of the work area nearest to a point (ties resolved deterministically). */
@@ -69,8 +71,8 @@ export function dockIconRect(edge: DockEdge, along: number, wa: WorkArea): Rect 
 
 /** Expanded window rect: widget beside the tab, extending inward, fully inside
  *  the work area (never over the taskbar, never off-screen). */
-export function expandedRect(edge: DockEdge, along: number, wa: WorkArea): Rect {
-  const size = expandedSize(edge);
+export function expandedRect(edge: DockEdge, along: number, wa: WorkArea, scale: number = 1): Rect {
+  const size = expandedSize(edge, scale);
   const right = wa.x + wa.width;
   const bottom = wa.y + wa.height;
   let rect: Rect;
@@ -93,8 +95,8 @@ export function expandedRect(edge: DockEdge, along: number, wa: WorkArea): Rect 
  *  recorded in state always matches what is actually rendered. Without the
  *  synchronisation the icon would re-locate itself after an expand near a
  *  screen corner, and a later collapse would restore a different spot. */
-export function expandAnchored(edge: DockEdge, along: number, wa: WorkArea): { rect: Rect; along: number } {
-  const size = expandedSize(edge);
+export function expandAnchored(edge: DockEdge, along: number, wa: WorkArea, scale: number = 1): { rect: Rect; along: number } {
+  const size = expandedSize(edge, scale);
   const right = wa.x + wa.width;
   const bottom = wa.y + wa.height;
   if (edge === 'left') {

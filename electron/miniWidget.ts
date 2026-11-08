@@ -1,7 +1,7 @@
 import { BrowserWindow, Menu, MenuItemConstructorOptions, screen } from 'electron';
 import path from 'node:path';
 import type { MiniWidgetOptions } from '../src/shared/settings';
-import { MINI_WIDGET_BOUNDS_KEY, MINI_WIDGET_OPTIONS_KEY, validateMiniOptions } from '../src/shared/settings';
+import { MINI_WIDGET_BOUNDS_KEY, MINI_WIDGET_OPTIONS_KEY, panelScaleFor, validateMiniOptions, validateSettings } from '../src/shared/settings';
 import type { DockEdge, DockState, Rect } from '../src/mini/dockLogic';
 import {
   dockIconRect,
@@ -64,10 +64,10 @@ export function dockDragStart(gx: number, gy: number): void {
 export function dockDragMove(gx: number, gy: number): void {
   if (!dragActive || !miniWin || miniWin.isDestroyed()) return;
   const now = Date.now();
-  if (now - lastDragApply < 24) return; // ~40 Hz is plenty smooth
+  if (now - lastDragApply < 12) return; // ≤ ~80 Hz; the renderer rAF-batches upstream
   lastDragApply = now;
   try {
-    miniWin.setPosition(gx - dragOffset.x, gy - dragOffset.y);
+    miniWin.setPosition(gx - dragOffset.x, gy - dragOffset.y, false);
   } catch {
     // window beaten up mid-drag: ignore
   }
@@ -92,6 +92,16 @@ export function initMiniWidget(storeRef: MiniStore, dev: boolean): void {
 
 export function getMiniOptions(): MiniWidgetOptions {
   return validateMiniOptions(store?.get(MINI_OPTIONS_KEY));
+}
+
+/** Panel scale from the shared font-size setting (1 for medium/unknown).
+ *  The CSS panel box scales by exactly this factor (mini.css --p-scale). */
+function currentPanelScale(): number {
+  try {
+    return panelScaleFor(validateSettings(store?.get('settings')).fontSize);
+  } catch {
+    return 1;
+  }
 }
 
 export function setMiniOptions(partial: { opacity?: number; alwaysOnTop?: boolean }): MiniWidgetOptions {
@@ -146,7 +156,7 @@ function currentWorkArea(): import('../src/mini/dockLogic').WorkArea {
 function applyDockRect(opts: { emit?: boolean } = {}): void {
   if (!miniWin || miniWin.isDestroyed()) return;
   const wa = currentWorkArea();
-  const anchored = dock.expanded ? expandAnchored(dock.edge, dock.along, wa) : null;
+  const anchored = dock.expanded ? expandAnchored(dock.edge, dock.along, wa, currentPanelScale()) : null;
   const rect = anchored ? anchored.rect : dockIconRect(dock.edge, dock.along, wa);
   setWindowRect(rect);
   if (anchored && anchored.along !== dock.along) {
@@ -223,7 +233,7 @@ function snapAndSave(): void {
   const newEdge = nearestEdge(tab.x, tab.y, wa);
   const rawAlong = newEdge === 'left' || newEdge === 'right' ? tab.y : tab.x;
   if (dock.expanded) {
-    const anchored = expandAnchored(newEdge, rawAlong, wa);
+    const anchored = expandAnchored(newEdge, rawAlong, wa, currentPanelScale());
     dock = { edge: newEdge, along: anchored.along, expanded: true };
     saveDockState();
     setWindowRect(anchored.rect);
@@ -254,7 +264,7 @@ function getOrMiniCreate(): void {
   const wa = screen.getPrimaryDisplay().workArea;
   /* Create directly at the CURRENT state's geometry (expanded or collapsed):
      the first visible frame must never require a later resize. */
-  const anchored = dock.expanded ? expandAnchored(dock.edge, dock.along, wa) : null;
+  const anchored = dock.expanded ? expandAnchored(dock.edge, dock.along, wa, currentPanelScale()) : null;
   const initial = anchored ? anchored.rect : dockIconRect(dock.edge, dock.along, wa);
 
   miniWin = new BrowserWindow({
@@ -398,7 +408,7 @@ export function toggleDock(): DockState {
   }
   transitioning = 'open';
   const wa = currentWorkArea();
-  const anchored = expandAnchored(dock.edge, dock.along, wa);
+  const anchored = expandAnchored(dock.edge, dock.along, wa, currentPanelScale());
   dock = { ...dock, expanded: true, along: anchored.along };
   saveDockState();
   if (!miniWin.isVisible()) miniWin.show();
@@ -429,7 +439,7 @@ function forceFinishTransition(): void {
   clearTransition();
   if (!miniWin || miniWin.isDestroyed() || !miniWin.isVisible()) return;
   if (wasOpen) {
-    setWindowRect(expandAnchored(dock.edge, dock.along, currentWorkArea()).rect);
+    setWindowRect(expandAnchored(dock.edge, dock.along, currentWorkArea(), currentPanelScale()).rect);
   } else {
     setWindowRect(dockIconRect(dock.edge, dock.along, currentWorkArea()));
   }

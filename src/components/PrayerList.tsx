@@ -16,6 +16,14 @@ interface Props {
   onToggleCompleted: (key: PrayerKey) => void;
   language: Language;
   clockFormat: ClockFormat;
+  /** Manual Iqama delays: computed times + per-prayer configuration flags. */
+  iqama: {
+    enabled: boolean;
+    /** True when no delay is configured at all: show the "not configured" hint. */
+    notConfiguredHint?: boolean;
+    times: Partial<Record<PrayerKey, string>>;
+    isConfigured: (prayer: PrayerKey) => boolean;
+  };
 }
 
 export function PrayerList({
@@ -27,11 +35,17 @@ export function PrayerList({
   onToggleCompleted,
   language,
   clockFormat,
+  iqama,
 }: Props): JSX.Element {
   const t = getDict(language);
 
   return (
     <section className="mx-4 mb-2 space-y-1.5">
+      {iqama.notConfiguredHint && (
+        <div className="rounded-lg bg-[var(--bg-card)] px-3 py-1 text-center text-[9.5px] text-[var(--text-faint)]">
+          ⓘ {t.iqama} — {t.iqamaNotConfigured}
+        </div>
+      )}
       {entries.map((entry, i) => {
         const Icon = prayerIcon(entry.key);
         const isNext = !nextIsTomorrow && i === nextIndex;
@@ -41,7 +55,7 @@ export function PrayerList({
         let highlight = 'border-[var(--border-subtle)] bg-[var(--bg-card)]';
         if (isNext) {
           highlight =
-            'border-[rgba(52,211,153,0.45)] bg-[var(--accent-softer)] shadow-[0_0_0_1px_rgba(52,211,153,0.25)]';
+            'border-[rgba(56,189,248,0.45)] bg-[var(--accent-softer)] shadow-[0_0_0_1px_rgba(56,189,248,0.25)]';
         } else if (isPast) {
           highlight = 'border-[var(--border-subtle)] bg-[var(--bg-card)] opacity-70';
         }
@@ -74,12 +88,37 @@ export function PrayerList({
               </div>
             </div>
 
-            <div
-              className={`font-mono text-[13px] font-semibold tabular-nums ${
-                isNext ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
-              }`}
-            >
-              {formatTime(rawTimings[entry.key], clockFormat)}
+            <div className="flex flex-col items-end">
+              <div
+                className={`font-mono text-[13px] font-semibold tabular-nums ${
+                  isNext ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
+                }`}
+              >
+                {formatTime(rawTimings[entry.key], clockFormat)}
+              </div>
+              <div
+                className={`mt-0.5 text-[9.5px] leading-none ${
+                  iqama.isConfigured(entry.key)
+                    ? isNext
+                      ? 'text-[var(--accent-hover)]'
+                      : 'text-[var(--text-faint)]'
+                    : 'text-[var(--text-faint)] opacity-70'
+                }`}
+                title={iqama.isConfigured(entry.key) ? undefined : `${t.iqama} — ${t.iqamaNotConfigured}`}
+              >
+                {iqama.isConfigured(entry.key) ? (
+                  <>
+                    <span className="mr-1 font-semibold tracking-wide">{t.iqama}</span>
+                    <span className="font-mono tabular-nums">
+                      {formatTime(iqama.times[entry.key], clockFormat)}
+                    </span>
+                  </>
+                ) : (
+                  <span>
+                    {t.iqama} · {t.iqamaNotConfigured}
+                  </span>
+                )}
+              </div>
             </div>
 
             <button

@@ -12,6 +12,16 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 
 export type AsrMadhab = 'standard' | 'hanafi';
 
+/** UI font size option (design token, applied to both widgets). */
+export type FontSizeMode = 'small' | 'medium' | 'big';
+
+/**
+ * Manually configured Iqama delay per prayer, in minutes. A prayer whose
+ * entry is `null` (or absent) has NO configured Iqama — nothing may be
+ * invented for it. Non-negative integers only.
+ */
+export type IqamaDelays = { [K in PrayerKey]?: number | null };
+
 /** Offset in minutes before the prayer that a notification should fire. */
 export const NOTIF_OFFSET_MINUTES: Record<NotifMode, number> = {
   none: -1,
@@ -33,9 +43,20 @@ export interface Settings {
   startWithWindows: boolean;
   launchMinimized: boolean;
   theme: ThemeMode;
+  /** Global font-size option (small/medium/big; medium is the default). */
+  fontSize: FontSizeMode;
   opacity: number;
   /** Floating mini-widget window ON/OFF (desktop widget with layout design). */
   showFloatingWidget: boolean;
+  /**
+   * Manually configured Iqama delay in minutes per prayer.
+   * Iqama time = daily prayer time + configured delay. `null` / absent =
+   * not configured (displayed as "Iqama not configured"). Purely local —
+   * never fetched from, or presented as, an external API schedule.
+   */
+  iqamaDelays: IqamaDelays;
+  /** Automatic location ON/OFF; coordinates are still subject to user consent. */
+  locationEnabled: boolean;
 }
 
 export interface MiniOptions {

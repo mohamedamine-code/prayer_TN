@@ -20,6 +20,7 @@ import {
   setNotificationClickHandler,
 } from './notifications';
 import { registerTray, updateTrayState, destroyTray } from './tray';
+import { initLocation } from './location';
 import {
   initMiniWidget,
   setMiniCloseHandler,
@@ -62,7 +63,7 @@ function loadSettings(): Settings {
 }
 
 function saveBounds(): void {
-  if (!mainWindow || mainWindow.isMinimized() || mainWindow.isDestroyed()) return;
+  if (!mainWindow || mainWindow.isMinimized() || mainWindow.isDestroyed() || mainWindow.isMaximized()) return;
   store.set(WINDOW_BOUNDS_KEY, mainWindow.getBounds());
 }
 
@@ -70,6 +71,8 @@ function applySettings(s: Settings): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setAlwaysOnTop(s.alwaysOnTop);
     if (process.platform === 'win32') mainWindow.setOpacity(s.opacity);
+    // Keep the opaque base color in sync with the themed shell (P5).
+    mainWindow.setBackgroundColor(s.theme === 'light' ? '#e7f0f8' : '#0b111a');
   }
   setLoginItemSetting(s.startWithWindows);
   applyMiniVisibility(s.showFloatingWidget);
@@ -117,14 +120,21 @@ function createWindow(): void {
     minWidth: 300,
     minHeight: 420,
     useContentSize: true,
+    // Native Windows behaviour (P2): keep the custom header (frame:false) but
+    // use WS_THICKFRAME so the window gets real resize borders, maximize and
+    // Win+Arrow snapping. `transparent` was removed because it disables
+    // thick-frame/snap/maximize on Windows.
     frame: false,
-    transparent: true,
     resizable: true,
-    maximizable: false,
+    maximizable: true,
+    minimizable: true,
     fullscreenable: false,
+    thickFrame: true,
+    // Opaque base color matches the widget shell (updated on theme change in
+    // applySettings) so rounded corners / first paint never flash white.
+    backgroundColor: settings.theme === 'light' ? '#e7f0f8' : '#0b111a',
     alwaysOnTop: true,
     skipTaskbar: false,
-    backgroundColor: '#00000000',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -133,6 +143,9 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      // Keep geolocation watch + timers reliable while the widget sleeps in
+      // the tray (hidden window); location tracking must survive minimization.
+      backgroundThrottling: false,
     },
   });
 
@@ -185,6 +198,8 @@ export function hideMainWindow(): void {
 
 app.whenReady().then(() => {
   setLoginItemSetting(loadSettings().startWithWindows);
+  // Install the strict geolocation permission handlers BEFORE any window exists.
+  initLocation(store, isDev ? process.env.VITE_DEV_SERVER_URL! : null);
   initMiniWidget(store, isDev);
   createWindow();
   registerTray({
@@ -260,6 +275,22 @@ ipcMain.handle('app:clearNotifications', () => {
 ipcMain.handle('app:closeWindow', () => {
   saveBounds();
   hideMainWindow();
+});
+
+// Native minimize: the window iconifies to the taskbar; the process and the
+// tray keep running. Deliberately distinct from closeWindow (hide-to-tray).
+ipcMain.handle('app:minimizeWindow', () => {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMinimized()) {
+    mainWindow.minimize();
+  }
+});
+
+// Toggle maximize/restore for the native window behavior (P2). Win+Arrow snap
+// keys work natively; this backs the header button and double-click.
+ipcMain.handle('app:maximizeToggle', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
 });
 
 // Mini floating widget controls.

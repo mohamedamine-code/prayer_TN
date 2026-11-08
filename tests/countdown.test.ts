@@ -122,11 +122,12 @@ describe('getNextPrayer', () => {
 });
 
 describe('formatCountdown', () => {
-  it('formats hours, minutes, seconds padded', () => {
-    expect(formatCountdown((1 * 3600 + 24 * 60 + 35) * 1000)).toBe('01 h 24 min 35 s');
+  it('formats HH:MM:SS with two digits per unit', () => {
+    expect(formatCountdown((1 * 3600 + 24 * 60 + 35) * 1000)).toBe('01:24:35');
+    expect(formatCountdown((35 * 60 + 7) * 1000)).toBe('00:35:07');
   });
   it('clamps negative remainders to zero', () => {
-    expect(formatCountdown(-5000)).toBe('00 h 00 min 00 s');
+    expect(formatCountdown(-5000)).toBe('00:00:00');
   });
 });
 
