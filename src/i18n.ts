@@ -69,6 +69,16 @@ export interface Dict {
   plusDelay: string;
   minusDelay: string;
   iqamaUnavailable: string;
+  iqamaErrorInvalid: string;
+  iqamaErrorMin: string;
+  iqamaErrorMax: string;
+  iqamaFocus: string;
+  iqamaFocusHint: string;
+  focusDuration: string;
+  focusTitle: string;
+  focusMsg: string;
+  focusEndEarly: string;
+  focusRemaining: string;
   locSection: string;
   locToggle: string;
   locPermission: string;
@@ -165,14 +175,24 @@ const fr: Dict = {
   sunrise: 'Lever du soleil',
   iqama: 'Iqama',
   iqamaConfig: "Configuration de l'Iqama",
-  iqamaDelayHint:
-    "Définissez le délai (en minutes) après l'adhan pour chaque prière : Iqama = heure de la prière + délai. Vide = Iqama non configurée (aucune valeur inventée).",
+  iqamaDelayHint: 'Délai minimum entre l’heure de la prière et l’Iqama : 5 minutes.',
   iqamaNotConfigured: 'non configurée',
   iqamaResetDefaults: 'Réinitialiser les délais',
   minutes: 'min',
   plusDelay: 'Augmenter le délai',
   minusDelay: 'Réduire le délai',
   iqamaUnavailable: 'Iqama indisponible',
+  iqamaErrorInvalid: 'Nombre entier de minutes requis.',
+  iqamaErrorMin: '5 minutes minimum.',
+  iqamaErrorMax: '120 minutes maximum.',
+  iqamaFocus: 'Mode focus Iqama',
+  iqamaFocusHint:
+    'À l’heure de l’Iqama le widget flottant passe en mode focus (compte à rebours dédié + notification). Une seule notification par prière par jour.',
+  focusDuration: 'Durée du focus',
+  focusTitle: 'Focus Iqama',
+  focusMsg: 'Prenez un moment pour la prière.',
+  focusEndEarly: 'Terminer le focus',
+  focusRemaining: 'Temps restant',
   locSection: 'Localisation automatique',
   locToggle: 'Localisation automatique',
   locPermission: 'Statut de permission',
@@ -274,14 +294,24 @@ const ar: Dict = {
   sunrise: 'الشروق',
   iqama: 'الإقامة',
   iqamaConfig: 'إعداد الإقامة',
-  iqamaDelayHint:
-    'حدّد مهلة التأخير بالدقائق بعد الأذان لكل صلاة: الإقامة = وقت الصلاة + التأخير. فارغ = الإقامة غير مضبوطة (لا تُختلق أي قيمة).',
+  iqamaDelayHint: 'الحد الأدنى للفاصل بين وقت الصلاة والإقامة: 5 دقائق.',
   iqamaNotConfigured: 'غير مضبوطة',
   iqamaResetDefaults: 'إعادة تعيين التأخيرات',
   minutes: 'د',
   plusDelay: 'زيادة التأخير',
   minusDelay: 'تقليص التأخير',
   iqamaUnavailable: 'الإقامة غير متوفرة',
+  iqamaErrorInvalid: 'المرجو إدخال عدد صحيح من الدقائق.',
+  iqamaErrorMin: 'الحد الأدنى 5 دقائق.',
+  iqamaErrorMax: 'الحد الأقصى 120 دقيقة.',
+  iqamaFocus: 'وضع التركيز للإقامة',
+  iqamaFocusHint:
+    'عند وصول وقت الإقامة ينتقل الودجت العائم إلى وضع التركيز (عدّاد مخصص + إشعار). إشعار واحد فقط لكل صلاة في اليوم.',
+  focusDuration: 'مدة التركيز',
+  focusTitle: 'تركيز الإقامة',
+  focusMsg: 'خصص وقتا للصلاة.',
+  focusEndEarly: 'إنهاء التركيز',
+  focusRemaining: 'الوقت المتبقي',
   locSection: 'الموقع التلقائي',
   locToggle: 'الموقع التلقائي',
   locPermission: 'حالة الإذن',
@@ -378,14 +408,24 @@ const en: Dict = {
   sunrise: 'Sunrise',
   iqama: 'Iqama',
   iqamaConfig: 'Iqama Configuration',
-  iqamaDelayHint:
-    'Set the delay (minutes) after the adhan for each prayer: Iqama = prayer time + delay. Empty = Iqama not configured (no value is invented).',
+  iqamaDelayHint: 'Minimum delay between prayer time and Iqama: 5 minutes.',
   iqamaNotConfigured: 'not configured',
   iqamaResetDefaults: 'Reset delays',
   minutes: 'min',
   plusDelay: 'Increase delay',
   minusDelay: 'Decrease delay',
   iqamaUnavailable: 'Iqama unavailable',
+  iqamaErrorInvalid: 'Enter a whole number of minutes.',
+  iqamaErrorMin: 'Minimum 5 minutes.',
+  iqamaErrorMax: 'Maximum 120 minutes.',
+  iqamaFocus: 'Iqama Focus Mode',
+  iqamaFocusHint:
+    'At Iqama time the floating widget switches to Focus Mode (dedicated countdown + notification). One notification per prayer per day.',
+  focusDuration: 'Focus duration',
+  focusTitle: 'Iqama Focus',
+  focusMsg: 'Take a moment for prayer.',
+  focusEndEarly: 'End Focus Mode',
+  focusRemaining: 'Time remaining',
   locSection: 'Automatic location',
   locToggle: 'Automatic location',
   locPermission: 'Permission status',

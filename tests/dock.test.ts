@@ -10,6 +10,7 @@ import {
   expandAnchored,
   expandedRect,
   expandedSize,
+  FOCUS_WIDGET_H,
   nearestEdge,
   tabCenterForWindow,
   validateDockState,
@@ -112,6 +113,17 @@ describe('expandedSize', () => {
   it('adds the tab along the dock axis only', () => {
     expect(expandedSize('left')).toEqual({ width: WIDGET_W + ICON_W, height: WIDGET_H });
     expect(expandedSize('bottom')).toEqual({ width: WIDGET_W, height: WIDGET_H + ICON_H });
+  });
+
+  it('supports the taller Iqama Focus panel (same width, FOCUS_WIDGET_H)', () => {
+    expect(expandedSize('left', 1, FOCUS_WIDGET_H)).toEqual({
+      width: WIDGET_W + ICON_W,
+      height: FOCUS_WIDGET_H,
+    });
+    expect(expandedSize('top', 1, FOCUS_WIDGET_H)).toEqual({
+      width: WIDGET_W,
+      height: FOCUS_WIDGET_H + ICON_H,
+    });
   });
 });
 

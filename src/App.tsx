@@ -5,6 +5,7 @@ import { usePrayerTimes } from './hooks/usePrayerTimes';
 import { usePrayerCountdown, useTunisClock } from './hooks/usePrayerCountdown';
 import { usePrayerNotifications } from './hooks/usePrayerNotifications';
 import { useIqamaTimes } from './hooks/useIqamaTimes';
+import { useIqamaFocus } from './hooks/useIqamaFocus';
 import { getDict } from './i18n';
 import type { PrayerKey } from './types/prayer';
 import { loadCompleted, saveCompleted, type CompletedMap } from './services/storage';
@@ -51,10 +52,25 @@ export default function App(): JSX.Element {
     asrMadhab: settings.asrMadhab,
   });
 
-  const countdown = usePrayerCountdown(times.today, times.tomorrow);
+  const countdown = usePrayerCountdown(times.today, times.tomorrow, settings.iqamaDelays);
   const clock = useTunisClock();
 
   const iqama = useIqamaTimes(times.today?.timings, settings.iqamaDelays, settings.clockFormat);
+
+  // Shared Iqama Focus state: derived from the same timestamps, dispatches the
+  // once-per-day Iqama notification alongside the floating widget.
+  useIqamaFocus(
+    times.today,
+    settings.iqamaDelays,
+    settings.focusDurationMinutes,
+    settings.iqamaFocusEnabled,
+    countdown.nowMs,
+    {
+      notify: true,
+      cityId: settings.cityId,
+      quiet: (p) => settings.notifications[p] === 'none',
+    },
+  );
 
   usePrayerNotifications(settings, times.today, times.tomorrow, countdown.nowMs);
 
@@ -105,6 +121,12 @@ export default function App(): JSX.Element {
     [times.today, countdown.next],
   );
 
+  const waitingIqamaStr = useMemo(() => {
+    if (countdown.phase !== 'waiting-for-iqama' || !countdown.next) return undefined;
+    if (countdown.next.isTomorrow || countdown.next.prayer === 'Sunrise') return undefined;
+    return iqama.times[countdown.next.prayer as PrayerKey];
+  }, [countdown.next, countdown.phase, iqama.times]);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const offlineMode = !navigator.onLine;
   const showLoading =
@@ -137,12 +159,14 @@ export default function App(): JSX.Element {
         ) : (
           <>
             <NextPrayer
-              next={countdown.next}
+              next={countdown.next as { prayer: PrayerKey; isTomorrow: boolean } | null}
               nextTimeStr={nextTimeStr}
               countdownText={countdown.countdownText}
               progress={countdown.progress}
               language={language}
               t={t}
+              phase={countdown.phase}
+              waitingIqamaStr={waitingIqamaStr}
             />
             {countdown.upcoming.length > 0 && (
               <PrayerList

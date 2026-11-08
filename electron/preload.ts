@@ -38,6 +38,12 @@ export interface SalatiBridge {
   dockCollapseFinish(): Promise<void>;
   /** First paint done with the correct dock phase: safe to show the window. */
   dockReady(): void;
+  /** Iqama Focus Mode: resize the floating window in place (expand/restore). */
+  setMiniFocus(active: boolean): Promise<void>;
+  /** Iqama Focus sessions the user ended early (persisted, keyed per day). */
+  getFocusDismissals(): Promise<string[]>;
+  dismissFocus(id: string): Promise<void>;
+  onFocusDismissalsChanged(cb: () => void): () => void;
   /** Automatic location bridge (consent-gated, see electron/location.ts). */
   getLocation(): Promise<StoredLocation>;
   setLocationConsent(consent: 'granted' | 'declined'): Promise<StoredLocation>;
@@ -85,6 +91,14 @@ const bridge: SalatiBridge = {
   dockDragEnd: () => ipcRenderer.invoke('dock:dragEnd'),
   dockCollapseFinish: () => ipcRenderer.invoke('dock:collapseFinish'),
   dockReady: () => ipcRenderer.send('mini:ready'),
+  setMiniFocus: (active) => ipcRenderer.invoke('mini:setFocus', active === true),
+  getFocusDismissals: () => ipcRenderer.invoke('focus:getDismissals'),
+  dismissFocus: (id) => ipcRenderer.invoke('focus:dismiss', id),
+  onFocusDismissalsChanged: (cb) => {
+    const fn = () => cb();
+    ipcRenderer.on('focus:dismissals:changed', fn);
+    return () => ipcRenderer.removeListener('focus:dismissals:changed', fn);
+  },
   getLocation: () => ipcRenderer.invoke('location:getState'),
   setLocationConsent: (consent) => ipcRenderer.invoke('location:setConsent', consent),
   pushLocationFix: (fix) => ipcRenderer.invoke('location:pushFix', fix),

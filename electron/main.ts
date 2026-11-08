@@ -38,6 +38,7 @@ import {
   dockDragEnd,
   collapseFinish,
   notifyDockReady,
+  setMiniFocus,
 } from './miniWidget';
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
@@ -327,6 +328,35 @@ ipcMain.handle('dock:dragMove', (_ev, x: unknown, y: unknown) => {
 });
 ipcMain.handle('dock:dragEnd', () => dockDragEnd());
 ipcMain.handle('dock:collapseFinish', () => collapseFinish());
+ipcMain.handle('mini:setFocus', (_ev, active: unknown) => {
+  setMiniFocus(active === true);
+});
+
+/* ---- Iqama Focus dismissal store (persisted, small, keyed per day) ---- */
+const FOCUS_DISMISSALS_KEY = 'focusDismissals';
+const FOCUS_DISMISSALS_LIMIT = 12;
+
+function loadFocusDismissals(): string[] {
+  const raw = store.get(FOCUS_DISMISSALS_KEY);
+  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string').slice(-FOCUS_DISMISSALS_LIMIT) : [];
+}
+
+function broadcastFocusDismissalsChanged(): void {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('focus:dismissals:changed');
+  }
+}
+
+ipcMain.handle('focus:getDismissals', () => loadFocusDismissals());
+ipcMain.handle('focus:dismiss', (_ev, id: unknown) => {
+  if (typeof id !== 'string' || id.length < 5 || id.length > 200) return;
+  const current = loadFocusDismissals();
+  if (!current.includes(id)) {
+    current.push(id);
+    store.set(FOCUS_DISMISSALS_KEY, current.slice(-FOCUS_DISMISSALS_LIMIT));
+    broadcastFocusDismissalsChanged();
+  }
+});
 
 // Daily prayer tracker storage (date-specific, validated, bounded).
 ipcMain.handle('completed:get', () => loadCompletions());

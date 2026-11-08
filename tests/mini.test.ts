@@ -63,6 +63,46 @@ describe('getNextMini', () => {
   });
 });
 
+describe('getNextMini (Iqama-aware transitions)', () => {
+  // Fajr +5, Dhuhr +57 (12:04 -> 13:01), Asr +10, Maghrib +5, Isha +20 —
+  // the same acceptance case as the shared scheduler tests.
+  const delays = { Fajr: 5, Dhuhr: 57, Asr: 10, Maghrib: 5, Isha: 20 };
+  const entries = buildMiniEntries(mkDay('06:34'), delays)!;
+
+  it('buildMiniEntries attaches iqamaAt per prayer', () => {
+    const dhuhr = entries.find((e) => e.key === 'Dhuhr')!;
+    expect(dhuhr.iqamaAt).toBe(wallClockToMs('24-10-2026', 13, 1));
+    const sun = entries.find((e) => e.key === 'Sunrise')!;
+    expect(sun.iqamaAt).toBeNull();
+  });
+
+  it('keeps the widget countdown on the adhan while it is upcoming', () => {
+    const r = getNextMini(wallClockToMs('24-10-2026', 11, 50), entries, null)!;
+    expect(r.key).toBe('Dhuhr');
+    expect(r.phase).toBe('upcoming');
+    expect(r.target).toBe(wallClockToMs('24-10-2026', 12, 4));
+  });
+
+  it('holds the current prayer between adhan and Iqama (target = iqama)', () => {
+    const r = getNextMini(wallClockToMs('24-10-2026', 12, 30), entries, null)!;
+    expect(r.key).toBe('Dhuhr');
+    expect(r.phase).toBe('waiting-for-iqama');
+    expect(r.target).toBe(wallClockToMs('24-10-2026', 13, 1));
+  });
+
+  it('advances to the following prayer only at the Iqama boundary', () => {
+    const r = getNextMini(wallClockToMs('24-10-2026', 13, 1), entries, null)!;
+    expect(r.key).toBe('Asr');
+    expect(r.phase).toBe('upcoming');
+    expect(r.target).toBe(wallClockToMs('24-10-2026', 15, 8));
+  });
+
+  it('keeps Sunrise behaviour (no Iqama hold)', () => {
+    const afterFajrIqama = wallClockToMs('24-10-2026', 5, 13);
+    expect(getNextMini(afterFajrIqama, entries, null)?.key).toBe('Sunrise');
+  });
+});
+
 describe('formatMiniCountdown', () => {
   it('always renders HH:MM:SS with two digits per unit', () => {
     expect(formatMiniCountdown(60 * 60_000 + 5 * 60_000)).toBe('01:05:00');

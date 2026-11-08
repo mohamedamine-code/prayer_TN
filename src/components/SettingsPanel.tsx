@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { type ReactNode } from 'react';
-import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4 } from 'lucide-react';
+import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4, Hourglass } from 'lucide-react';
 import type { RadioGroupOptions } from './RadioGroup';
 import { RadioGroup } from './RadioGroup';
 import { CitySelect } from './CitySelect';
@@ -7,13 +8,19 @@ import { useSettings } from '../hooks/useSettings';
 import { useLocation } from '../hooks/useLocation';
 import { getDict, RADIO_LANGS, prayerName } from '../i18n';
 import type {
+  FocusDuration,
   FontSizeMode,
   NotifMode,
   PrayerKey,
   Settings,
   ThemeMode,
 } from '../types/prayer';
-import { CALC_METHODS, IQAMA_DELAY_MAX, IQAMA_DELAY_MIN, DEFAULT_IQAMA_DELAYS } from '../shared/settings';
+import {
+  CALC_METHODS,
+  DEFAULT_IQAMA_DELAYS,
+  FOCUS_DURATIONS,
+  parseIqamaDelayInput,
+} from '../shared/settings';
 
 export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element {
   const { settings, update, reset } = useSettings();
@@ -92,6 +99,10 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
 
         <Field label={t.iqamaConfig}>
           <IqamaConfigSection />
+        </Field>
+
+        <Field label={t.iqamaFocus}>
+          <FocusModeSection />
         </Field>
 
         <Field label={t.language}>
@@ -263,74 +274,110 @@ function PrayerNotificationRows({
 }
 
 /** Manual Iqama delays: one independent numeric input per prayer (minutes).
- *  Saved in shared settings; Iqama = daily prayer time + configured delay.
- *  Nothing is fetched from an external API and unset prayers show as
- *  "not configured" rather than an invented time. */
+ *  Mandatory minimum of 5 minutes; whole minutes only. Invalid values show
+ *  an error and are never saved (the shared settings service re-validates
+ *  as well). Iqama = daily prayer time + configured delay. */
 function IqamaConfigSection(): JSX.Element {
   const { settings, update } = useSettings();
   const t = getDict(settings.language);
   const rtl = settings.language === 'ar';
   const prayers: PrayerKey[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
-  const setDelay = (p: PrayerKey, raw: string): void => {
-    let value: number | null = null;
-    if (raw.trim() !== '') {
-      const n = Math.round(Number(raw));
-      if (Number.isFinite(n)) value = Math.min(IQAMA_DELAY_MAX, Math.max(IQAMA_DELAY_MIN, n));
+  // Local drafts so typing an in-progress value never persists an invalid one.
+  const [drafts, setDrafts] = useState<Partial<Record<PrayerKey, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<PrayerKey, string>>>({});
+
+  const commit = (p: PrayerKey, raw: string): void => {
+    const parsed = parseIqamaDelayInput(raw);
+    if (parsed.ok) {
+      setErrors((prev) => ({ ...prev, [p]: undefined }));
+      if (parsed.value !== settings.iqamaDelays[p]) {
+        update({ iqamaDelays: { ...settings.iqamaDelays, [p]: parsed.value } });
+      }
+    } else {
+      setErrors((prev) => ({ ...prev, [p]: convertedError(parsed.error, t) }));
     }
-    update({ iqamaDelays: { ...settings.iqamaDelays, [p]: value } });
+  };
+
+  const valueFor = (p: PrayerKey): string => {
+    const draft = drafts[p];
+    if (draft !== undefined) return draft;
+    const saved = settings.iqamaDelays[p];
+    return typeof saved === 'number' ? String(saved) : '';
   };
 
   return (
     <div className="space-y-2">
       {prayers.map((p) => {
-        const current = settings.iqamaDelays[p];
-        const value = current ?? '';
+        const err = errors[p];
         return (
-          <div
-            key={p}
-            className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-2"
-          >
-            <Clock4 className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-            <span className={`flex-1 truncate text-[12px] font-medium text-[var(--text-primary)]`}>
-              {prayerName(p, rtl ? 'ar' : settings.language)}
-            </span>
-            <button
-              type="button"
-              title={t.minusDelay}
-              onClick={() => setDelay(p, String(Math.max(IQAMA_DELAY_MIN, (current ?? 0) - 1)))}
-              className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
-              disabled={current === null || current === undefined || current <= IQAMA_DELAY_MIN}
-            >
-              −
-            </button>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={IQAMA_DELAY_MIN}
-              max={IQAMA_DELAY_MAX}
-              step={1}
-              value={value}
-              placeholder="—"
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === '') setDelay(p, '');
-                else setDelay(p, v);
-              }}
-              className={`w-14 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 py-1 text-center text-[12px] font-semibold tabular-nums text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] ${
-                rtl ? 'text-left' : ''
-              }`}
-            />
-            <button
-              type="button"
-              title={t.plusDelay}
-              onClick={() => setDelay(p, String(Math.min(IQAMA_DELAY_MAX, (current ?? 0) + 1)))}
-              className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
-              disabled={(current ?? 0) >= IQAMA_DELAY_MAX}
-            >
-              +
-            </button>
-            <span className="w-9 text-right text-[10px] text-[var(--text-faint)]">{t.minutes}</span>
+          <div key={p} className="space-y-1">
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-2">
+              <Clock4 className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+              <span className="flex-1 truncate text-[12px] font-medium text-[var(--text-primary)]">
+                {prayerName(p, rtl ? 'ar' : settings.language)}
+              </span>
+              <button
+                type="button"
+                title={t.minusDelay}
+                onClick={() => {
+                  const saved = typeof settings.iqamaDelays[p] === 'number' ? (settings.iqamaDelays[p] as number) : 5;
+                  const next = String(Math.max(5, saved - 1));
+                  setDrafts((prev) => ({ ...prev, [p]: next }));
+                  setErrors((prev) => ({ ...prev, [p]: undefined }));
+                  commit(p, next);
+                }}
+                disabled={(typeof settings.iqamaDelays[p] === 'number' ? (settings.iqamaDelays[p] as number) : 5) <= 5}
+                className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] disabled:opacity-30"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={5}
+                max={120}
+                step={1}
+                value={valueFor(p)}
+                placeholder="5"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDrafts((prev) => ({ ...prev, [p]: v }));
+                  if (v.trim() === '') setErrors((prev) => ({ ...prev, [p]: t.iqamaErrorMin }));
+                  else commit(p, v);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v !== '' && parseIqamaDelayInput(v).ok) commit(p, v);
+                  // Revert invalid drafts to the saved value on blur.
+                  setDrafts((prev) => ({ ...prev, [p]: undefined }));
+                  setErrors((prev) => ({ ...prev, [p]: undefined }));
+                }}
+                className={`w-14 rounded-lg border bg-[var(--bg-input)] px-2 py-1 text-center text-[12px] font-semibold tabular-nums text-[var(--text-primary)] outline-none transition focus:border-[var(--accent)] ${
+                  err ? 'border-[var(--danger)] focus:border-[var(--danger)]' : 'border-[var(--border-subtle)]'
+                } ${rtl ? 'text-left' : ''}`}
+              />
+              <button
+                type="button"
+                title={t.plusDelay}
+                onClick={() => {
+                  const saved = typeof settings.iqamaDelays[p] === 'number' ? (settings.iqamaDelays[p] as number) : 5;
+                  const next = String(Math.min(120, saved + 1));
+                  setDrafts((prev) => ({ ...prev, [p]: next }));
+                  setErrors((prev) => ({ ...prev, [p]: undefined }));
+                  commit(p, next);
+                }}
+                className="rounded-md px-1.5 text-[12px] leading-none text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)]"
+              >
+                +
+              </button>
+              <span className="w-9 text-right text-[10px] text-[var(--text-faint)]">{t.minutes}</span>
+            </div>
+            {err && (
+              <div className="pl-8 text-[10px] font-medium text-[var(--danger)]" role="alert">
+                {err}
+              </div>
+            )}
           </div>
         );
       })}
@@ -338,12 +385,57 @@ function IqamaConfigSection(): JSX.Element {
         <p className="text-[9px] leading-relaxed text-[var(--text-faint)]">{t.iqamaDelayHint}</p>
         <button
           type="button"
-          onClick={() => update({ iqamaDelays: { ...DEFAULT_IQAMA_DELAYS } })}
+          onClick={() => {
+            setDrafts({});
+            setErrors({});
+            update({ iqamaDelays: { ...DEFAULT_IQAMA_DELAYS } });
+          }}
           className="shrink-0 rounded-lg border border-[var(--border-strong)] px-2.5 py-1 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--bg-card-hover)] hover:text-[var(--danger)]"
         >
           {t.iqamaResetDefaults}
         </button>
       </div>
+    </div>
+  );
+}
+
+function convertedError(error: 'invalid' | 'min' | 'max', t: ReturnType<typeof getDict>): string {
+  if (error === 'invalid') return t.iqamaErrorInvalid;
+  if (error === 'min') return t.iqamaErrorMin;
+  return t.iqamaErrorMax;
+}
+
+/** Iqama Focus Mode: dedicated countdown/progress view at Iqama time plus a
+ *  single-per-day Windows notification. Focus Duration (5/10/15/20 min) is
+ *  deliberately separate from the 5-min-minimum Iqama delay. */
+function FocusModeSection(): JSX.Element {
+  const { settings, update } = useSettings();
+  const t = getDict(settings.language);
+
+  const durationOptions: RadioGroupOptions<FocusDuration> = FOCUS_DURATIONS.map((d) => ({
+    value: d,
+    label: `${d} ${t.minutes}`,
+  }));
+
+  return (
+    <div className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3">
+      <ToggleRow
+        label={t.iqamaFocus}
+        checked={settings.iqamaFocusEnabled}
+        onChange={(v) => update({ iqamaFocusEnabled: v })}
+      />
+      <div>
+        <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <Hourglass className="h-3 w-3" />
+          {t.focusDuration}
+        </div>
+        <RadioGroup
+          value={settings.focusDurationMinutes}
+          options={durationOptions}
+          onChange={(v) => update({ focusDurationMinutes: v })}
+        />
+      </div>
+      <p className="text-[9px] leading-relaxed text-[var(--text-faint)]">{t.iqamaFocusHint}</p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Hourglass } from 'lucide-react';
 import { LottieLight } from 'lottie-react';
 import flowIcon from './assets/flowIcon.json';
 import type { AnimationEvent, JSX } from 'react';
@@ -9,20 +9,25 @@ import { validateCompletionsStore } from '../shared/completions';
 import type { DockEdge, DockState } from './dockLogic';
 import { animFallbackMs, nextPhase, type DockPhase } from './dockPhase';
 import { getCity } from '../data/tunisianCities';
-import { getDict } from '../i18n';
+import { getDict, prayerName } from '../i18n';
 import { LocationProvider } from '../hooks/useLocation';
 import {
   MINI_CELLS,
-  buildMiniEntries,
   formatMiniClock,
   formatMiniCountdown,
   formatMiniTime,
-  getNextMini,
 } from './miniLogic';
 import { usePrayerTimes } from '../hooks/usePrayerTimes';
 import { usePrayerCountdown } from '../hooks/usePrayerCountdown';
 import { useIqamaTimes } from '../hooks/useIqamaTimes';
+import { useIqamaFocus } from '../hooks/useIqamaFocus';
 import { useLocation } from '../hooks/useLocation';
+import {
+  focusEndAt,
+  focusRemainingRatio,
+  formatFocusCountdown,
+  type FocusSession,
+} from '../services/focusMode';
 import { TUNIS_TZ, wallClockInTz } from '../logic/times';
 import { applyFontSize, applyTheme } from '../logic/theme';
 
@@ -122,11 +127,24 @@ function Chevron({ dir }: { dir: 'left' | 'right' | 'up' | 'down' }): JSX.Elemen
   return <ChevronDown />;
 }
 
+/** Clock text (HH:MM or 12h) from an absolute epoch ms in Tunis time. */
+function formatEpochClock(ms: number, clockFormat: Settings['clockFormat']): string {
+  const { h, m } = wallClockInTz(TUNIS_TZ, new Date(ms));
+  if (clockFormat === '12h') {
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  }
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 /** Widget surface classes for the current expansion phase. */
-function miniMainClass(phase: DockPhase): string {
-  if (phase === 'opening') return 'mini-main anim-open';
-  if (phase === 'closing') return 'mini-main anim-close';
-  return 'mini-main';
+function miniMainClass(phase: DockPhase, focusActive: boolean): string {
+  let cls = 'mini-main';
+  if (phase === 'opening') cls += ' anim-open';
+  if (phase === 'closing') cls += ' anim-close';
+  if (focusActive) cls += ' is-focus';
+  return cls;
 }
 
 /** Root of the mini window: an edge-docked tab that expands into the widget. */
@@ -167,7 +185,14 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
     calculationMethod: settings?.calculationMethod ?? 18,
     asrMadhab: settings?.asrMadhab ?? 'standard',
   });
-  const countdown = usePrayerCountdown(times.today, times.tomorrow);
+  /* Shared iqama-aware transition engine (nextScheduled/focus target rules).
+     Sunrise is kept as a countdown target for display continuity. */
+  const countdown = usePrayerCountdown(
+    times.today,
+    times.tomorrow,
+    settings?.iqamaDelays ?? {},
+    { includeSunrise: true },
+  );
   const completedToday = useMiniCompletions(times.today?.dateKey);
   const t = getDict(settings?.language ?? 'fr');
   const iqama = useIqamaTimes(
@@ -176,10 +201,29 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
     settings?.clockFormat,
   );
 
-  const nextMini = useMemo(
-    () => getNextMini(countdown.nowMs, buildMiniEntries(times.today), buildMiniEntries(times.tomorrow)?.find((e) => e.key === 'Fajr')?.at ?? null),
-    [countdown.nowMs, times.today, times.tomorrow],
+  /* Iqama Focus Mode — same derived shared state as the principal widget. */
+  const focus = useIqamaFocus(
+    times.today,
+    settings?.iqamaDelays ?? {},
+    settings?.focusDurationMinutes ?? 15,
+    settings?.iqamaFocusEnabled ?? true,
+    countdown.nowMs,
+    {
+      notify: true,
+      cityId: settings?.cityId ?? 'tunis',
+      quiet: (p) => settings?.notifications[p] === 'none',
+    },
   );
+  const focusActive = !!focus.session;
+  /* Tell the main process ONCE per transition to expand/restore the window. */
+  const lastFocusSent = useRef(false);
+  useEffect(() => {
+    if (lastFocusSent.current === focusActive) return;
+    lastFocusSent.current = focusActive;
+    void window.salati?.setMiniFocus(focusActive);
+  }, [focusActive]);
+
+  const nextMini = countdown.next;
 
   /* Dragging (P3): raw pointermove can fire far faster than the display frame
      rate (especially after a DPI/resolution change, where the move class
@@ -241,7 +285,8 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   const nowHHMMSS = formatMiniClock(clock.h, clock.m, clock.s, clockFormat);
   const cityName =
     settings.language === 'ar' ? city.nameAr : settings.language === 'en' ? city.nameEn : city.nameFr;
-  const remaining = nextMini ? nextMini.at - countdown.nowMs : 0;
+  const remaining = countdown.remainingMs;
+  const nextKey = nextMini?.prayer ?? null;
   const chev = chevronFor(dock.edge, dock.expanded);
 
   /* Location indicator states (floating widget):
@@ -299,11 +344,11 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
       </div>
 
       <div
-        className={miniMainClass(phase)}
-        style={{ visibility: phase === 'collapsed' ? 'hidden' : 'visible' }}
+        className={miniMainClass(phase, focusActive)}
+        style={{ visibility: phase === 'collapsed' && !focusActive ? 'hidden' : 'visible' }}
         onAnimationEnd={onMiniAnimEnd}
       >
-        <div className="mini-root">
+        <div className={focusActive ? 'mini-root is-focus-shell' : 'mini-root'}>
           <div className="mini-header">
             <span className="mini-logo">Salati</span>
             <span className="mini-clock">{nowHHMMSS}</span>
@@ -318,51 +363,111 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
             </button>
           </div>
 
-          <div className="mini-center">
-            <div className="mini-label">
-              {settings.language === 'ar' ? 'التالية' : 'NEXT'} · {nextMini ? ABBR_OF[nextMini.key] : '—'}
-            </div>
-            {nextMini ? (
-              <div className="mini-countdown">{formatMiniCountdown(remaining)}</div>
-            ) : (
-              <div className="mini-error">{times.error ? t.errorTitle : t.loading}</div>
-            )}
-          </div>
-
-          <div className="mini-cells">
-            {MINI_CELLS.map((cell) => {
-              const raw = times.today?.timings[cell.key];
-              const active = nextMini?.key === cell.key;
-              // Sunrise is informational only: never part of the checklist.
-              const isTrackable = cell.key !== 'Sunrise';
-              const done = isTrackable && completedToday[cell.key as keyof CompletedMap] === true;
-              // Manual Iqama: only prayers with a configured delay get a time.
-              const configured = isTrackable && iqama.isConfigured(cell.key as PrayerKey);
-              const iqRaw = configured ? iqama.times[cell.key as PrayerKey] : undefined;
-              return (
-                <div key={cell.key} className={active ? 'mini-cell active' : 'mini-cell'}>
-                  <div className="mini-cell-abbr">
-                    {cell.abbr}
-                    {isTrackable && done && (
-                      <span className="mini-cell-check" title={t.completed}>
-                        ✓
-                      </span>
-                    )}
-                  </div>
-                  <div className="mini-cell-time">{raw ? formatMiniTime(raw, clockFormat) : '--:--'}</div>
-                  <div
-                    className="mini-cell-iqama"
-                    data-configured={configured ? 'true' : 'false'}
-                    title={configured ? t.iqama : `${t.iqama} — ${t.iqamaNotConfigured}`}
-                  >
-                    {iqRaw ?? '—'}
-                  </div>
+          {focus.session ? (
+            <FocusPanel
+              session={focus.session}
+              nowMs={countdown.nowMs}
+              settings={settings}
+              t={t}
+              onEnd={() => focus.dismiss(focus.session!)}
+            />
+          ) : (
+            <>
+              <div className="mini-center">
+                <div className="mini-label">
+                  {settings.language === 'ar' ? 'التالية' : 'NEXT'} · {nextKey ? ABBR_OF[nextKey] : '—'}
                 </div>
-              );
-            })}
-          </div>
+                {nextMini ? (
+                  <div className="mini-countdown">{formatMiniCountdown(remaining)}</div>
+                ) : (
+                  <div className="mini-error">{times.error ? t.errorTitle : t.loading}</div>
+                )}
+              </div>
+
+              <div className="mini-cells">
+                {MINI_CELLS.map((cell) => {
+                  const raw = times.today?.timings[cell.key];
+                  const active = nextKey === cell.key;
+                  // Sunrise is informational only: never part of the checklist.
+                  const isTrackable = cell.key !== 'Sunrise';
+                  const done = isTrackable && completedToday[cell.key as keyof CompletedMap] === true;
+                  // Manual Iqama: only prayers with a configured delay get a time.
+                  const configured = isTrackable && iqama.isConfigured(cell.key as PrayerKey);
+                  const iqRaw = configured ? iqama.times[cell.key as PrayerKey] : undefined;
+                  return (
+                    <div key={cell.key} className={active ? 'mini-cell active' : 'mini-cell'}>
+                      <div className="mini-cell-abbr">
+                        {cell.abbr}
+                        {isTrackable && done && (
+                          <span className="mini-cell-check" title={t.completed}>
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      <div className="mini-cell-time">{raw ? formatMiniTime(raw, clockFormat) : '--:--'}</div>
+                      <div
+                        className="mini-cell-iqama"
+                        data-configured={configured ? 'true' : 'false'}
+                        title={configured ? t.iqama : `${t.iqama} — ${t.iqamaNotConfigured}`}
+                      >
+                        {iqRaw ?? '—'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Iqama Focus Mode layout for the floating widget (STATE 2). The active
+ *  prayer is the visual priority: dedicated large MM:SS countdown derived
+ *  from timestamps, progress bar over the remaining focus time, plus an
+ *  early-exit button. Same theme/design tokens as the compact widget. */
+function FocusPanel({
+  session,
+  nowMs,
+  settings,
+  t,
+  onEnd,
+}: {
+  session: FocusSession;
+  nowMs: number;
+  settings: Settings;
+  t: ReturnType<typeof getDict>;
+  onEnd: () => void;
+}): JSX.Element {
+  const remaining = Math.max(0, focusEndAt(session.iqamaAt, session.durationMin) - nowMs);
+  const ratio = focusRemainingRatio(nowMs, session.iqamaAt, session.durationMin);
+  return (
+    <div className="mini-focus">
+      <div className="mini-focus-head">
+        <Hourglass className="mini-focus-head-icon" />
+        <span className="mini-focus-label">{t.focusTitle}</span>
+      </div>
+      <div className="mini-focus-name">
+        <span className="mini-focus-name-ar">{prayerName(session.prayer, 'ar')}</span>
+        <span className="mini-focus-name-latin">{prayerName(session.prayer, settings.language)}</span>
+      </div>
+      <div className="mini-focus-times">
+        <span title={t.nextPrayer}>{formatEpochClock(session.prayerAt, settings.clockFormat)}</span>
+        <span className="mini-focus-arrow">→</span>
+        <span className="mini-focus-iqama" title={t.iqama}>
+          {formatEpochClock(session.iqamaAt, settings.clockFormat)}
+        </span>
+      </div>
+      <div className="mini-focus-countdown">{formatFocusCountdown(remaining)}</div>
+      <div className="mini-focus-bar" aria-hidden="true">
+        <div className="mini-focus-fill" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
+      </div>
+      <div className="mini-focus-msg">{t.focusMsg}</div>
+      <button type="button" className="mini-focus-end" onClick={onEnd}>
+        {t.focusEndEarly}
+      </button>
     </div>
   );
 }

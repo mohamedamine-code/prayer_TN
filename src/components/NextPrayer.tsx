@@ -1,6 +1,7 @@
 import type { Dict } from '../i18n';
 import { prayerName } from '../i18n';
 import type { Language, PrayerKey } from '../types/prayer';
+import type { PrayerPhase as SchedPhase } from '../services/prayerSchedule';
 
 interface Props {
   next: { prayer: PrayerKey; isTomorrow: boolean } | null;
@@ -11,6 +12,10 @@ interface Props {
   progress: number;
   language: Language;
   t: Dict;
+  /** Shared scheduling phase (upcoming / waiting-for-iqama). */
+  phase?: SchedPhase;
+  /** "HH:MM" Iqama of the prayer currently holding the schedule. */
+  waitingIqamaStr?: string;
 }
 
 export function NextPrayer({
@@ -20,7 +25,10 @@ export function NextPrayer({
   progress,
   language,
   t,
+  phase,
+  waitingIqamaStr,
 }: Props): JSX.Element {
+  const waiting = phase === 'waiting-for-iqama' && !!waitingIqamaStr;
   return (
     <section className="mx-4 mb-2 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-gradient-to-b from-[var(--accent-softer)] to-transparent px-4 py-3">
       <div className="flex items-center justify-between">
@@ -28,7 +36,15 @@ export function NextPrayer({
           {t.nextPrayer}
           {next?.isTomorrow ? ` · ${t.countdownTargetTomorrow}` : ''}
         </div>
-        <div className="font-mono text-[11px] text-[#8b95a5] tabular-nums">{nextTimeStr}</div>
+        <div className="font-mono text-[11px] text-[#8b95a5] tabular-nums">
+          {waiting ? (
+            <>
+              {nextTimeStr} <span className="text-[var(--accent-hover)]">→ {t.iqama} {waitingIqamaStr}</span>
+            </>
+          ) : (
+            nextTimeStr
+          )}
+        </div>
       </div>
 
       <div className="mt-1.5 flex items-end gap-2">

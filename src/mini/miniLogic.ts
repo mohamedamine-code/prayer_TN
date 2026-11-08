@@ -1,12 +1,19 @@
-import { parseHHMM, wallClockToMs } from '../logic/times';
-import type { ClockFormat, DayPrayerTimes } from '../types/prayer';
+import type { ClockFormat, DayPrayerTimes, IqamaDelays } from '../types/prayer';
+import {
+  buildScheduleEntries,
+  nextAfterIqama,
+  type PrayerPhase,
+  type ScheduleKey,
+} from '../services/prayerSchedule';
 
-export type MiniKey = 'Fajr' | 'Sunrise' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
+export type MiniKey = ScheduleKey;
 
 export interface MiniEntry {
   key: MiniKey;
   /** Absolute epoch ms of the adhan (Tunis UTC+1). */
   at: number;
+  /** Absolute epoch ms of the Iqama; null for Sunrise / not-configured. */
+  iqamaAt: number | null;
 }
 
 export const MINI_CELLS: readonly { key: MiniKey; abbr: string }[] = [
@@ -19,43 +26,61 @@ export const MINI_CELLS: readonly { key: MiniKey; abbr: string }[] = [
 ] as const;
 
 /**
- * 6-entry list (5 prayers + Sunrise) with absolute ms timestamps.
- * Sunrise is optional in the API payload; it is skipped when missing.
+ * 6-entry list (5 prayers + Sunrise) with absolute ms timestamps and the
+ * configured Iqama timestamps. Built on the SHARED schedule service so the
+ * floating widget and the principal widget never diverge. Sunrise is
+ * optional in the API payload; it is skipped when missing.
  * Returns null when any required prayer time is malformed.
  */
-export function buildMiniEntries(day: DayPrayerTimes | null): MiniEntry[] | null {
+export function buildMiniEntries(
+  day: DayPrayerTimes | null,
+  delays: IqamaDelays = {},
+): MiniEntry[] | null {
   if (!day) return null;
-  const ordered: MiniKey[] = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-  const out: MiniEntry[] = [];
-  for (const key of ordered) {
-    const raw = day.timings[key];
-    if (raw === undefined || raw === null) continue; // Sunrise is optional
-    const parsed = parseHHMM(raw);
-    if (!parsed) return null;
-    out.push({ key, at: wallClockToMs(day.dateKey, parsed.h, parsed.m) });
-  }
-  if (out.length < 5) return null;
-  return out.sort((a, b) => a.at - b.at);
+  const schedule = buildScheduleEntries(day, delays, true);
+  if (!schedule || schedule.length < 5) return null;
+  return schedule.map((e) => ({ key: e.key as MiniKey, at: e.prayerAt, iqamaAt: e.iqamaAt }));
 }
 
 export interface NextMiniResult {
   key: MiniKey;
   at: number;
+  iqamaAt: number | null;
+  /** Countdown target: adhan before the adhan, Iqama while waiting. */
+  target: number;
+  phase: PrayerPhase;
   isTomorrow: boolean;
 }
 
-/** Next mini entry strictly after `now`; tomorrow's Fajr after the last one. */
+/**
+ * Next mini entry after the Iqama-completion boundary. Delegates to the
+ * shared scheduler (services/prayerSchedule) — one transition engine for both
+ * widgets. `tomorrowFajr` may be a bare adhan timestamp (legacy, no Iqama
+ * hold) or a full MiniEntry.
+ */
 export function getNextMini(
   now: number,
   entries: MiniEntry[] | null,
-  tomorrowFajrMs: number | null,
+  tomorrowFajr: MiniEntry | number | null,
 ): NextMiniResult | null {
   if (!entries || entries.length === 0) return null;
-  for (const e of entries) {
-    if (e.at > now) return { key: e.key, at: e.at, isTomorrow: false };
-  }
-  if (tomorrowFajrMs !== null) return { key: 'Fajr', at: tomorrowFajrMs, isTomorrow: true };
-  return null;
+  const tomorrowEntry =
+    typeof tomorrowFajr === 'number'
+      ? (tomorrowFajr > 0 ? ({ key: 'Fajr' as const, prayerAt: tomorrowFajr, iqamaAt: null } as const) : null)
+      : (tomorrowFajr
+          ? { key: tomorrowFajr.key, prayerAt: tomorrowFajr.at, iqamaAt: tomorrowFajr.iqamaAt }
+          : null);
+  const sched = entries.map((e) => ({ key: e.key, prayerAt: e.at, iqamaAt: e.iqamaAt }));
+  const r = nextAfterIqama(now, sched, tomorrowEntry, entries[0]!.at);
+  if (!r) return null;
+  return {
+    key: r.key as MiniKey,
+    at: r.prayerAt,
+    iqamaAt: r.iqamaAt,
+    target: r.target,
+    phase: r.phase,
+    isTomorrow: r.isTomorrow,
+  };
 }
 
 /** Countdown as "HH:MM:SS" (two digits per unit), clamped at 00:00:00. */

@@ -1,5 +1,5 @@
 import type { Language, NotifMode, PrayerNotifications, Settings } from '../types/prayer';
-import type { IqamaDelays, FontSizeMode, PrayerKey } from '../types/prayer';
+import type { IqamaDelays, FontSizeMode, PrayerKey, FocusDuration } from '../types/prayer';
 import { DEFAULT_CITY_ID } from '../data/tunisianCities';
 
 export const CALC_METHOD_TUNISIA = 18;
@@ -14,23 +14,28 @@ export const CALC_METHODS: { id: number; label: string; params?: string }[] = [
 
 /**
  * Iqama delays are configured manually per prayer (minutes after the adhan).
- * There is deliberately no default delay: an unset prayer means "Iqama not
- * configured" — nothing is invented or fetched from an external API.
+ * The mandatory minimum is 5 minutes: the user may delay the Iqama further
+ * but can never shorten it below the adhan + 5 min. Nothing is fetched from
+ * an external API. Missing/invalid values migrate to the 5-minute default.
  */
-export const IQAMA_DELAY_MIN = 0;
+export const IQAMA_DELAY_MIN = 5;
 /** Sensible upper bound so a fat-fingered value can't break the UI/watchdogs. */
 export const IQAMA_DELAY_MAX = 120;
 
 export const IQAMA_PRAYER_KEYS: readonly PrayerKey[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
-/** Fresh installation: every Iqama delay unset. */
+/** Fresh installation: every Iqama delay is 5 minutes after the adhan. */
 export const DEFAULT_IQAMA_DELAYS: IqamaDelays = {
-  Fajr: null,
-  Dhuhr: null,
-  Asr: null,
-  Maghrib: null,
-  Isha: null,
+  Fajr: IQAMA_DELAY_MIN,
+  Dhuhr: IQAMA_DELAY_MIN,
+  Asr: IQAMA_DELAY_MIN,
+  Maghrib: IQAMA_DELAY_MIN,
+  Isha: IQAMA_DELAY_MIN,
 };
+
+/** Allowed Iqama Focus durations (minutes). Distinct from the Iqama delay. */
+export const FOCUS_DURATIONS: readonly FocusDuration[] = [5, 10, 15, 20];
+export const DEFAULT_FOCUS_DURATION: FocusDuration = 15;
 
 export const DEFAULT_SETTINGS: Settings = {
   cityId: DEFAULT_CITY_ID,
@@ -53,6 +58,8 @@ export const DEFAULT_SETTINGS: Settings = {
   opacity: 1,
   showFloatingWidget: false,
   iqamaDelays: DEFAULT_IQAMA_DELAYS,
+  iqamaFocusEnabled: true,
+  focusDurationMinutes: DEFAULT_FOCUS_DURATION,
   /** Off by default: location only becomes active via explicit user consent. */
   locationEnabled: false,
 };
@@ -75,25 +82,45 @@ export function panelScaleFor(mode: unknown): number {
   return PANEL_SCALE[m] ?? 1;
 }
 
-/** Clamp + validate one manually configured Iqama delay (minutes). */
-export function validateIqamaDelay(value: unknown): number | null {
+/**
+ * Validate one Iqama delay: whole minutes only, answers in [5, 120].
+ * Missing/invalid junk migrates to the 5-minute default, values below 5
+ * migrate up to 5, decimals round to the nearest whole minute.
+ */
+export function validateIqamaDelay(value: unknown): number {
   const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-  if (!Number.isFinite(n)) return null;
+  if (!Number.isFinite(n)) return IQAMA_DELAY_MIN;
   const int = Math.round(n);
-  if (int < IQAMA_DELAY_MIN || int > IQAMA_DELAY_MAX) return null;
-  return int;
+  return Math.min(IQAMA_DELAY_MAX, Math.max(IQAMA_DELAY_MIN, int));
 }
 
-/** Validate an IqamaDelays map: unknown keys dropped, each value clamped. */
+/** Validate an IqamaDelays map: unknown keys dropped, each value validated. */
 export function validateIqamaDelays(input: unknown): IqamaDelays {
   const src = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>;
   const out: IqamaDelays = { ...DEFAULT_IQAMA_DELAYS };
-  for (const k of IQAMA_PRAYER_KEYS) {
-    const v = src[k];
-    if (v === null || v === undefined) out[k] = null;
-    else out[k] = validateIqamaDelay(v);
-  }
+  for (const k of IQAMA_PRAYER_KEYS) out[k] = validateIqamaDelay(src[k]);
   return out;
+}
+
+/** Whole-minute Focus duration (5/10/15/20); anything else → default 15. */
+export function validateFocusDuration(value: unknown): FocusDuration {
+  return FOCUS_DURATIONS.includes(value as FocusDuration)
+    ? (value as FocusDuration)
+    : DEFAULT_FOCUS_DURATION;
+}
+
+export type IqamaInputResult =
+  | { ok: true; value: number }
+  | { ok: false; error: 'invalid' | 'min' | 'max' };
+
+/** Validate one raw settings-input string for the Iqama delay field. */
+export function parseIqamaDelayInput(raw: string): IqamaInputResult {
+  const text = raw.trim();
+  if (!/^-?\d+$/.test(text)) return { ok: false, error: 'invalid' };
+  const n = Number(text);
+  if (n < IQAMA_DELAY_MIN) return { ok: false, error: 'min' };
+  if (n > IQAMA_DELAY_MAX) return { ok: false, error: 'max' };
+  return { ok: true, value: n };
 }
 
 /** Merge arbitrary (possibly persisted junk) input into a full validated Settings object. */
@@ -140,6 +167,8 @@ export function validateSettings(input: unknown): Settings {
     showFloatingWidget: src.showFloatingWidget === true,
     locationEnabled: src.locationEnabled === true,
     iqamaDelays: validateIqamaDelays(src.iqamaDelays),
+    iqamaFocusEnabled: src.iqamaFocusEnabled !== false,
+    focusDurationMinutes: validateFocusDuration(src.focusDurationMinutes),
   };
 }
 

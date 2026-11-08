@@ -16,11 +16,14 @@ export type AsrMadhab = 'standard' | 'hanafi';
 export type FontSizeMode = 'small' | 'medium' | 'big';
 
 /**
- * Manually configured Iqama delay per prayer, in minutes. A prayer whose
- * entry is `null` (or absent) has NO configured Iqama — nothing may be
- * invented for it. Non-negative integers only.
+ * Manually configured Iqama delay per prayer, in minutes (integer, >= 5).
+ * A `null`/absent entry is invalid and migrates to the 5-minute default;
+ * nothing below five minutes may be configured.
  */
 export type IqamaDelays = { [K in PrayerKey]?: number | null };
+
+/** Iqama Focus duration options (minutes). Distinct from the Iqama delay. */
+export type FocusDuration = 5 | 10 | 15 | 20;
 
 /** Offset in minutes before the prayer that a notification should fire. */
 export const NOTIF_OFFSET_MINUTES: Record<NotifMode, number> = {
@@ -49,12 +52,15 @@ export interface Settings {
   /** Floating mini-widget window ON/OFF (desktop widget with layout design). */
   showFloatingWidget: boolean;
   /**
-   * Manually configured Iqama delay in minutes per prayer.
-   * Iqama time = daily prayer time + configured delay. `null` / absent =
-   * not configured (displayed as "Iqama not configured"). Purely local —
-   * never fetched from, or presented as, an external API schedule.
+   * Manually configured Iqama delay in minutes per prayer (integer, min 5).
+   * Iqama time = daily prayer time + configured delay. Missing/invalid
+   * entries migrate to the 5-minute default. Purely local.
    */
   iqamaDelays: IqamaDelays;
+  /** Automatic Iqama Focus Mode ON/OFF (floating widget + notifications). */
+  iqamaFocusEnabled: boolean;
+  /** Focus session duration in minutes (5/10/15/20; default 15). */
+  focusDurationMinutes: FocusDuration;
   /** Automatic location ON/OFF; coordinates are still subject to user consent. */
   locationEnabled: boolean;
 }

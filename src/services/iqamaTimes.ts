@@ -1,5 +1,6 @@
 import type { IqamaDelays, PrayerKey } from '../types/prayer';
-import { IQAMA_PRAYER_KEYS } from '../shared/settings';
+import { IQAMA_PRAYER_KEYS, validateIqamaDelay } from '../shared/settings';
+import { parseHHMM, wallClockToMs } from '../logic/times';
 
 /**
  * Manual Iqama (congregation) timing — the single shared service used by the
@@ -42,11 +43,40 @@ export function resolveManualIqama(
   const out: Partial<Record<PrayerKey, string>> = {};
   if (!timings) return out;
   for (const prayer of IQAMA_PRAYER_KEYS) {
-    const minutes = delays[prayer];
+    const configured = delays[prayer];
+    if (typeof configured !== 'number') continue;
+    // Enforce the shared 5-min minimum / whole-minute rule at this layer too.
+    const minutes = validateIqamaDelay(configured);
     const adhan = timings[prayer];
-    if (typeof minutes !== 'number' || !adhan) continue;
+    if (!adhan) continue;
     const iqama = addMinutesToHHMM(adhan, minutes);
     if (iqama) out[prayer] = iqama;
+  }
+  return out;
+}
+
+/**
+ * Absolute Iqama timestamps (epoch ms) for one day: prayer timestamp + delay.
+ * Built from real timestamps so midnight/date rollovers are exact (a late
+ * Isha Iqama past 00:00 belongs to the next instant, not the same minute).
+ * Recomputed whenever the daily times change — the delay is never applied
+ * twice because the source is always the adhan timestamp.
+ */
+export function resolveIqamaTimestamps(
+  dateKey: string,
+  timings: Partial<Record<PrayerKey, string>> | undefined,
+  delays: IqamaDelays,
+): Partial<Record<PrayerKey, number>> {
+  const out: Partial<Record<PrayerKey, number>> = {};
+  if (!timings) return out;
+  for (const prayer of IQAMA_PRAYER_KEYS) {
+    const configured = delays[prayer];
+    if (typeof configured !== 'number') continue;
+    const minutes = validateIqamaDelay(configured);
+    const adhan = timings[prayer];
+    const parsed = parseHHMM(adhan);
+    if (!parsed) continue;
+    out[prayer] = wallClockToMs(dateKey, parsed.h, parsed.m) + minutes * 60_000;
   }
   return out;
 }
