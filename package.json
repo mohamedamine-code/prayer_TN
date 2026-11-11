@@ -1,7 +1,7 @@
 {
   "name": "salati-tunisia",
   "productName": "Salati Tunisia",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Salati Tunisia — صلاتي تونس. Desktop prayer-times widget for Tunisian cities.",
   "main": "dist-electron/main.js",
   "private": true,
