@@ -22,6 +22,15 @@ import {
 import { registerTray, updateTrayState, destroyTray } from './tray';
 import { initLocation } from './location';
 import {
+  initUpdater,
+  getUpdateState,
+  manualCheck,
+  manualDownload,
+  installUpdate,
+  stopUpdaterTimers,
+  setUpdateClickHandler,
+} from './updater';
+import {
   initMiniWidget,
   setMiniCloseHandler,
   applyMiniVisibility,
@@ -38,7 +47,6 @@ import {
   dockDragEnd,
   collapseFinish,
   notifyDockReady,
-  setMiniFocus,
 } from './miniWidget';
 
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
@@ -213,6 +221,9 @@ app.whenReady().then(() => {
   if (bootSettings.showFloatingWidget) showMiniWidget();
   setMiniCloseHandler(closeMiniAndSync);
   screen.on('display-metrics-changed', () => refreshDockPlacement());
+  // Update checker (delayed, non-blocking; packaged production builds only).
+  initUpdater();
+  setUpdateClickHandler(showMainWindow);
 });
 
 // Single instance lock: avoid duplicated trays and notification spam.
@@ -228,6 +239,7 @@ app.on('before-quit', () => {
   destroyTray();
   flushMiniBounds();
   destroyMiniWidget();
+  stopUpdaterTimers();
 });
 
 // The widget keeps running in the tray; do not quit when the window is hidden.
@@ -328,9 +340,6 @@ ipcMain.handle('dock:dragMove', (_ev, x: unknown, y: unknown) => {
 });
 ipcMain.handle('dock:dragEnd', () => dockDragEnd());
 ipcMain.handle('dock:collapseFinish', () => collapseFinish());
-ipcMain.handle('mini:setFocus', (_ev, active: unknown) => {
-  setMiniFocus(active === true);
-});
 
 /* ---- Iqama Focus dismissal store (persisted, small, keyed per day) ---- */
 const FOCUS_DISMISSALS_KEY = 'focusDismissals';
@@ -377,7 +386,7 @@ ipcMain.handle('completed:setAll', (_ev, raw: unknown) => {
 });
 
   ipcMain.handle('app:openExternal', (_ev, url: unknown) => {
-  if (typeof url === 'string' && /^https:\/\/(support\.microsoft\.com|aladhan\.com)/.test(url)) {
+  if (typeof url === 'string' && /^https:\/\/(support\.microsoft\.com|aladhan\.com|github\.com\/mohamedamine-code\/prayer_TN(\/|$))/.test(url)) {
     void shell.openExternal(url);
     return true;
   }
@@ -392,3 +401,9 @@ ipcMain.handle('app:startupToggle', () => {
 });
 
 ipcMain.handle('app:getStartupState', () => getCurrentStartupSetting());
+
+/* ---- Updater IPC (read-only state + explicit user actions, no args accepted) ---- */
+ipcMain.handle('update:getState', () => getUpdateState());
+ipcMain.handle('update:check', () => manualCheck());
+ipcMain.handle('update:download', () => manualDownload());
+ipcMain.handle('update:install', () => installUpdate());

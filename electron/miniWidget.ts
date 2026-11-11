@@ -7,7 +7,6 @@ import {
   dockIconRect,
   dockStateFromRect,
   expandAnchored,
-  FOCUS_WIDGET_H,
   nearestEdge,
   tabCenterForWindow,
   validateDockState,
@@ -105,52 +104,15 @@ function currentPanelScale(): number {
   }
 }
 
-/* ---- Iqama Focus Mode: the window grows while a focus session is active ---- */
+/* ---- Iqama Focus Mode ----
+   Focus Mode is a pure RENDERER-side visual transformation of the expanded
+   panel content (same window size, same position). The main process keeps
+   the expanded geometry fixed at WIDGET_H and never resizes or moves the
+   window when a focus session starts/ends. */
 
-let focusActive = false;
-/** dock.expanded value to restore when the focus window ends. */
-let focusPrevExpanded = false;
-
-/** Panel height to use for expanded geometry (normal vs focus layout). */
-function panelHeightFor(): number {
-  return focusActive ? FOCUS_WIDGET_H : 176;
-}
-
-/** Anchor + rect for the current expanded geometry (scale & focus aware). */
+/** Anchor + rect for the current expanded geometry (scale aware). */
 function expandedGeometry(wa: import('../src/mini/dockLogic').WorkArea): { rect: Rect; along: number } {
-  return expandAnchored(dock.edge, dock.along, wa, currentPanelScale(), panelHeightFor());
-}
-
-/**
- * Iqama Focus Mode window transition. The SAME floating window is resized in
- * place (never recreated, never a second BrowserWindow): expand smoothly to
- * the taller focus panel at Iqama time, shrink back when the session ends or
- * the user ends it early. The previous expand/collapse intent is restored.
- */
-export function setMiniFocus(active: boolean): void {
-  if (active === focusActive) return;
-  focusActive = active;
-  if (!miniWin || miniWin.isDestroyed()) return;
-  if (active) {
-    focusPrevExpanded = dock.expanded;
-    dock = { ...dock, expanded: true };
-    saveDockState();
-  } else {
-    dock = { ...dock, expanded: focusPrevExpanded };
-    saveDockState();
-  }
-  if (transitioning) forceFinishTransition();
-  emitDockChanged();
-  if (!miniWin.isVisible()) return; // re-anchor happens at next show
-  const wa = currentWorkArea();
-  if (dock.expanded) {
-    const anchored = expandedGeometry(wa);
-    dock = { ...dock, along: anchored.along };
-    saveDockState();
-    setWindowRect(anchored.rect);
-  } else {
-    setWindowRect(dockIconRect(dock.edge, dock.along, wa));
-  }
+  return expandAnchored(dock.edge, dock.along, wa, currentPanelScale());
 }
 
 export function setMiniOptions(partial: { opacity?: number; alwaysOnTop?: boolean }): MiniWidgetOptions {
@@ -282,7 +244,7 @@ function snapAndSave(): void {
   const newEdge = nearestEdge(tab.x, tab.y, wa);
   const rawAlong = newEdge === 'left' || newEdge === 'right' ? tab.y : tab.x;
   if (dock.expanded) {
-    const anchored = expandAnchored(newEdge, rawAlong, wa, currentPanelScale(), panelHeightFor());
+    const anchored = expandAnchored(newEdge, rawAlong, wa, currentPanelScale());
     dock = { edge: newEdge, along: anchored.along, expanded: true };
     saveDockState();
     setWindowRect(anchored.rect);

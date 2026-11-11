@@ -14,17 +14,19 @@
     "dev": "npm run build:electron && concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "dev:renderer": "vite",
     "build": "npm run typecheck && npm run build:electron && vite build",
-    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --external:electron --external:electron-store --outdir=dist-electron",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --external:electron --external:electron-store --external:electron-updater --outdir=dist-electron",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "electron .",
     "icons": "node scripts/make-icons.js",
     "dist": "npm run build && npm run icons && electron-builder --win",
-    "dist:dir": "npm run build && npm run icons && electron-builder --win --dir"
+    "dist:dir": "npm run build && npm run icons && electron-builder --win --dir",
+    "release": "npm run build && npm run icons && electron-builder --win --publish onTag"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.11",
     "lottie-react": "^3.1.2",
     "lucide-react": "^0.454.0",
     "react": "^18.3.1",
@@ -51,6 +53,11 @@
   "build": {
     "appId": "tn.salati.tunisia",
     "productName": "Salati Tunisia",
+    "publish": {
+      "provider": "github",
+      "owner": "mohamedamine-code",
+      "repo": "prayer_TN"
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"

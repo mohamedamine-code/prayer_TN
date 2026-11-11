@@ -23,15 +23,15 @@ export const ICON_H = 56;
 /** Expanded widget content size (extra height fits the Iqama row under each cell). */
 export const WIDGET_W = 320;
 export const WIDGET_H = 176;
-/** Expanded FOCUS MODE content size: same width, taller for the dedicated
- *  focus layout (mirrors .mini-main.focus in mini.css). */
+/** Legacy taller focus-panel height. Focus Mode no longer resizes the
+ *  window (it is a renderer-side content transform), but the constant is
+ *  kept for the geometry unit tests. */
 export const FOCUS_WIDGET_H = 272;
 /** Keep-away margins so no pixel of the tab sits outside the work area. */
 export const EDGE_INSET = 2;
 
 /** Collapse tab size is fixed; the expanded PANEL scales with the font-size
- *  setting (scale = 1 keeps the designed 320x176 content box). Iqama Focus
- *  Mode passes the taller FOCUS_WIDGET_H panel height. */
+ *  setting (scale = 1 keeps the designed 320x176 content box). */
 export function expandedSize(
   edge: DockEdge,
   scale: number = 1,

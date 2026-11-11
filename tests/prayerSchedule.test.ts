@@ -92,18 +92,18 @@ describe('nextAfterIqama — required acceptance case (Dhuhr 12:03 → Iqama 13:
     expect(r.target).toBe(at(15, 30)); // Asr adhan
   });
 
-  it('5. focus countdown target stays the focus end while Focus Mode runs', () => {
-    const now = at(13, 5);
-    const focus = activeFocusSession(now, { Dhuhr: at(13, 0) } as Partial<Record<'Dhuhr', number>>, 15);
-    expect(focus?.prayer).toBe('Dhuhr'); // activeFocusPrayer ≠ nextPrayer
+  it('5. while Focus Mode runs, the countdown target is the focus end (= iqama)', () => {
+    const now = at(12, 43);
+    const focus = activeFocusSession(now, [{ prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(13, 0) }]);
+    expect(focus?.prayer).toBe('Dhuhr'); // activeFocusPrayer ≠ nextPrayer after iqama
     const r = nextAfterIqama(now, entries, null, at(0, 0))!;
-    expect(r.key).toBe('Asr'); // schedule already advanced
+    expect(r.target).toBe(at(13, 0)); // schedule itself already targets the iqama
     expect(scheduleCountdownTarget(r, focus!.focusEndAt, now)).toBe(focus!.focusEndAt);
   });
 
-  it('6. after the focus session ends the normal countdown returns to Asr', () => {
+  it('6. after the focus session ends (now >= iqama) the schedule shows Asr', () => {
     const now = at(13, 15) + 1_000;
-    const focus = activeFocusSession(now, { Dhuhr: at(13, 0) } as Partial<Record<'Dhuhr', number>>, 15);
+    const focus = activeFocusSession(now, [{ prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(13, 0) }]);
     expect(focus).toBeNull();
     const r = nextAfterIqama(now, entries, null, at(0, 0))!;
     expect(r.key).toBe('Asr');
@@ -183,12 +183,10 @@ describe('nextAfterIqama — all five prayers + edges', () => {
 describe('independent state separation (schedule vs focus)', () => {
   it('nextPrayer and activeFocusPrayer are separate values at the Iqama instant', () => {
     const now = at(13, 0);
-    const iqamaMap = { Dhuhr: at(13, 0) } as Partial<Record<'Dhuhr', number>>;
+    const focus = activeFocusSession(now, [{ prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(13, 0) }]);
     const sched = nextAfterIqama(now, buildScheduleEntries(TODAY, DELAYS)!, null, at(0, 0))!;
-    const focus = activeFocusSession(now, iqamaMap, 15);
     expect(sched.key).toBe('Asr');
-    expect(focus?.prayer).toBe('Dhuhr');
-    expect(sched.key).not.toBe(focus!.prayer);
+    expect(focus).toBeNull(); // focus ended exactly at the iqama instant
   });
 });
 

@@ -359,156 +359,63 @@ html[data-theme='light'] {
 }
 
 /* ===== Iqama Focus Mode (STATE 2) =====
-   The same panel switches to the dedicated focus layout: the window grows to
-   FOCUS_WIDGET_H (272 px at scale 1 — keep in sync with dockLogic.ts). */
-.mini-main.is-focus {
-  height: 272px;
-}
-:root {
-  --mini-gold: #fbbf24;
-  --mini-gold-soft: rgba(251, 191, 36, 0.16);
-  --mini-gold-border: rgba(251, 191, 36, 0.35);
-}
-html[data-theme='light'] {
-  --mini-gold: #b45309;
-  --mini-gold-soft: rgba(180, 83, 9, 0.12);
-  --mini-gold-border: rgba(180, 83, 9, 0.35);
-}
-
+   A pure in-place visual transformation of the SAME 320x176 panel: the
+   BrowserWindow is never resized, moved or recreated — only the shell
+   background and the content inside it change. The shell is always a dark
+   translucent black (both themes) with the existing rounded corners kept. */
+/* Focus Mode shell: STATIC — no background/dialog transition of any kind.
+   Normal and Focus content swap instantly (per spec: zero animations). */
 .mini-root.is-focus-shell {
-  border-color: var(--mini-gold-border);
+  background: rgba(0, 0, 0, 0.78);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+/* Header info is hidden in Focus Mode; only the close control remains. */
+.is-focus-shell .mini-close {
+  color: rgba(255, 255, 255, 0.7);
+}
+.is-focus-shell .mini-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .mini-focus {
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
-  margin-top: 8px;
-  animation: focusIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes focusIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.mini-focus-head {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  color: var(--mini-gold);
-}
-.mini-focus-head-icon {
-  width: 12px;
-  height: 12px;
-}
-.mini-focus-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
+  text-align: center;
 }
 
+/* Clean, readable: medium weight, light gray, no color accents. */
 .mini-focus-name {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-top: 6px;
-}
-.mini-focus-name-ar {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--mini-text);
-}
-.mini-focus-name-latin {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--mini-gold);
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.92);
 }
 
-.mini-focus-times {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 3px;
-  font-family: Consolas, 'JetBrains Mono', monospace;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--mini-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.mini-focus-arrow {
-  color: var(--mini-gold);
-}
-.mini-focus-iqama {
-  color: var(--mini-iqama);
-}
-
-/* Prominent countdown (substantially larger than the 34px normal one). */
+/* Large, readable HH:MM:SS (scales with --p-scale via .mini-main zoom). */
 .mini-focus-countdown {
-  font-family: 'Caveat', 'Segoe Script', cursive;
-  font-size: 64px;
+  font-family: Consolas, 'JetBrains Mono', monospace;
+  font-size: 40px;
   font-weight: 700;
   line-height: 1.05;
-  margin-top: 4px;
-  color: var(--mini-gold);
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
-.mini-focus-bar {
-  height: 6px;
-  border-radius: 999px;
-  margin-top: 8px;
-  background: var(--mini-chev-bg);
-  overflow: hidden;
-}
-.mini-focus-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--mini-iqama), var(--mini-gold));
-  transition: width 1s linear;
-}
-
-.mini-focus-msg {
-  margin-top: 7px;
-  font-size: 11px;
-  color: var(--mini-text-muted);
-  text-align: center;
-}
-
-.mini-focus-end {
-  margin-top: 8px;
-  align-self: center;
-  padding: 6px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--mini-gold-border);
-  background: var(--mini-gold-soft);
-  color: var(--mini-gold);
-  font-size: 11.5px;
+.mini-focus-caption {
+  font-size: 9px;
   font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.15s;
-}
-.mini-focus-end:hover {
-  filter: brightness(1.12);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mini-focus {
-    animation: dockFadeIn 150ms linear both;
-  }
-  .mini-focus-fill {
-    transition: none;
-  }
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 /* ===== Expand / collapse animation =====

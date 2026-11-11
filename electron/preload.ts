@@ -3,6 +3,7 @@ import type { Settings } from '../src/types/prayer';
 import type { CompletionsStore } from '../src/shared/completions';
 import type { DockState } from '../src/mini/dockLogic';
 import type { StoredLocation } from '../src/shared/location';
+import type { UpdateState } from '../src/shared/updater';
 
 export interface SalatiBridge {
   getSettings(): Promise<Settings>;
@@ -38,8 +39,6 @@ export interface SalatiBridge {
   dockCollapseFinish(): Promise<void>;
   /** First paint done with the correct dock phase: safe to show the window. */
   dockReady(): void;
-  /** Iqama Focus Mode: resize the floating window in place (expand/restore). */
-  setMiniFocus(active: boolean): Promise<void>;
   /** Iqama Focus sessions the user ended early (persisted, keyed per day). */
   getFocusDismissals(): Promise<string[]>;
   dismissFocus(id: string): Promise<void>;
@@ -51,6 +50,12 @@ export interface SalatiBridge {
   setLocationCity(labels: { city: string; country: string }): Promise<StoredLocation>;
   clearLocation(): Promise<StoredLocation>;
   onLocationChanged(cb: (state: StoredLocation) => void): () => void;
+  /** Automatic update bridge (main-process service, see electron/updater.ts). */
+  getUpdateState(): Promise<UpdateState>;
+  checkForUpdates(): Promise<UpdateState>;
+  downloadUpdate(): Promise<UpdateState>;
+  installUpdate(): Promise<void>;
+  onUpdateState(cb: (state: UpdateState) => void): () => void;
 }
 
 const bridge: SalatiBridge = {
@@ -91,7 +96,6 @@ const bridge: SalatiBridge = {
   dockDragEnd: () => ipcRenderer.invoke('dock:dragEnd'),
   dockCollapseFinish: () => ipcRenderer.invoke('dock:collapseFinish'),
   dockReady: () => ipcRenderer.send('mini:ready'),
-  setMiniFocus: (active) => ipcRenderer.invoke('mini:setFocus', active === true),
   getFocusDismissals: () => ipcRenderer.invoke('focus:getDismissals'),
   dismissFocus: (id) => ipcRenderer.invoke('focus:dismiss', id),
   onFocusDismissalsChanged: (cb) => {
@@ -108,6 +112,15 @@ const bridge: SalatiBridge = {
     const fn = (_ev: unknown, s: StoredLocation) => cb(s);
     ipcRenderer.on('location:changed', fn);
     return () => ipcRenderer.removeListener('location:changed', fn);
+  },
+  getUpdateState: () => ipcRenderer.invoke('update:getState'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateState: (cb) => {
+    const fn = (_ev: unknown, s: UpdateState) => cb(s);
+    ipcRenderer.on('update:state', fn);
+    return () => ipcRenderer.removeListener('update:state', fn);
   },
 };
 

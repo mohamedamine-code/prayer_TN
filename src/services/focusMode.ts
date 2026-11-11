@@ -1,86 +1,82 @@
 import type { PrayerKey } from '../types/prayer';
-import { IQAMA_PRAYER_KEYS } from '../shared/settings';
 
 /**
  * Iqama Focus Mode — single shared source of truth (pure functions, no
  * Electron/React imports) used by the principal widget and the floating
  * widget alike.
  *
+ * One state machine, three(states):
+ *   STATE 1 (Normal):      now <  prayerAt
+ *   STATE 2 (Focus):  prayerAt <= now < iqamaAt      ← focus duration = iqama − prayer
+ *   STATE 3 (Iqama reached): iqamaAt <= now
+ *
  * The active focus session is always DERIVED from real timestamps, never
  * from a decrementing counter:
- *   Focus End  = Iqama timestamp + configured focus duration
+ *   Focus End  = Iqama timestamp
  *   Remaining  = max(0, Focus End - now)
- * so sleep/wake, minimization and full app restarts cannot drift, and an
- * expired session simply drops out of the window.
+ * so sleep/wake, minimization and full app restarts cannot drift, an expired
+ * session simply drops out of the window, and a session started mid-window
+ * (app launch / wake between Adhan and Iqama) restores exactly.
  */
 
 /** Notification window: an Iqama whose time passed longer ago is stale. */
 export const IQAMA_NOTIFY_GRACE_MS = 90_000;
 
-export interface FocusSession {
+/** One focus candidate: adhan and its configured Iqama (absolute epoch ms). */
+export interface FocusWindow {
   prayer: PrayerKey;
-  /** Absolute epoch ms of the adhan of this prayer (focus context display). */
+  /** Official prayer (Adhan) timestamp — Focus Mode STARTS here. */
   prayerAt: number;
-  /** Absolute epoch ms of the Iqama (focus start). */
+  /** Iqama timestamp — Focus Mode ENDS here. */
   iqamaAt: number;
-  /** Absolute epoch ms of the end of the focus window. */
+}
+
+export interface FocusSession extends FocusWindow {
+  /** Absolute epoch ms of the end of the focus window (= iqamaAt). */
   focusEndAt: number;
-  /** Configured duration in minutes. */
+  /** Active duration in minutes = (iqamaAt - prayerAt) / 60_000. */
   durationMin: number;
 }
 
-/** Focus end timestamp derived from real timestamps (Iqama + duration). */
-export function focusEndAt(iqamaAtMs: number, durationMin: number): number {
-  const d = Number.isFinite(durationMin) ? Math.max(0, Math.round(durationMin)) : 0;
-  return iqamaAtMs + d * 60_000;
-}
-
 /**
- * The prayer whose Iqama focus window contains `now`, if any (there can only
- * ever be one when durations are minutes; on overlap the most recent wins).
+ * STATE 2 rule: the focus window whose [adhan, iqama) interval contains
+ * `now`, if any (windows are disjoint). Expired sessions (now >= iqamaAt)
+ * and not-yet-started sessions (now < prayerAt) return null — Normal Mode.
  */
 export function activeFocusSession(
   now: number,
-  iqamaTimestamps: Partial<Record<PrayerKey, number>>,
-  durationMin: number,
-  prayerTimestamps?: Partial<Record<PrayerKey, number>>,
+  windows: readonly FocusWindow[],
 ): FocusSession | null {
   let found: FocusSession | null = null;
-  for (const prayer of IQAMA_PRAYER_KEYS) {
-    const at = iqamaTimestamps[prayer];
-    if (typeof at !== 'number') continue;
-    const end = focusEndAt(at, durationMin);
-    if (now >= at && now < end) {
+  for (const w of windows) {
+    if (!(w.iqamaAt > w.prayerAt)) continue;
+    if (now >= w.prayerAt && now < w.iqamaAt) {
       found = {
-        prayer,
-        prayerAt: prayerTimestamps?.[prayer] ?? at,
-        iqamaAt: at,
-        focusEndAt: end,
-        durationMin,
+        prayer: w.prayer,
+        prayerAt: w.prayerAt,
+        iqamaAt: w.iqamaAt,
+        focusEndAt: w.iqamaAt,
+        durationMin: (w.iqamaAt - w.prayerAt) / 60_000,
       };
     }
   }
   return found;
 }
 
-/** "MM:SS" remaining-time text (e.g. 15:00 → 14:59 … 00:00), clamped at zero. */
+/** "HH:MM:SS" remaining-time text (17 min left → "00:17:00"), clamped at zero. */
 export function formatFocusCountdown(msRemaining: number): string {
   const total = Math.max(0, Math.floor(msRemaining / 1000));
-  const m = Math.floor(total / 60);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** 0..1 fraction of remaining focus time (1 = just started, 0 = done). */
-export function focusRemainingRatio(
-  now: number,
-  iqamaAtMs: number,
-  durationMin: number,
-): number {
-  const end = focusEndAt(iqamaAtMs, durationMin);
-  const span = end - iqamaAtMs;
+/** 0..1 fraction of remaining focus time; span = iqamaAt − prayerAt. */
+export function focusRemainingRatio(now: number, prayerAt: number, iqamaAt: number): number {
+  const span = iqamaAt - prayerAt;
   if (span <= 0) return 0;
-  return Math.min(1, Math.max(0, (end - now) / span));
+  return Math.min(1, Math.max(0, (iqamaAt - now) / span));
 }
 
 /**

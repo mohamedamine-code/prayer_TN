@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { type ReactNode } from 'react';
-import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4, Hourglass } from 'lucide-react';
+import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4 } from 'lucide-react';
 import type { RadioGroupOptions } from './RadioGroup';
 import { RadioGroup } from './RadioGroup';
 import { CitySelect } from './CitySelect';
 import { useSettings } from '../hooks/useSettings';
 import { useLocation } from '../hooks/useLocation';
+import { useUpdater } from '../hooks/useUpdater';
+import { UpdaterSection } from './UpdaterSection';
 import { getDict, RADIO_LANGS, prayerName } from '../i18n';
 import type {
-  FocusDuration,
   FontSizeMode,
   NotifMode,
   PrayerKey,
@@ -18,12 +19,12 @@ import type {
 import {
   CALC_METHODS,
   DEFAULT_IQAMA_DELAYS,
-  FOCUS_DURATIONS,
   parseIqamaDelayInput,
 } from '../shared/settings';
 
 export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element {
   const { settings, update, reset } = useSettings();
+  const { state } = useUpdater();
   const t = getDict(settings.language);
   const rtl = settings.language === 'ar';
   const dir = rtl ? 'rtl' : 'ltr';
@@ -201,12 +202,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
         <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3">
           <div className="text-[11px] font-semibold text-[var(--text-primary)]">{t.about}</div>
           <div className="mt-1 text-[10px] text-[var(--text-muted)]">
-            {t.appName} {t.appNameAr} — {t.version} 1.0.0
+            {t.appName} {t.appNameAr} — {t.version} {state.currentVersion || '—'}
           </div>
           <div className="text-[10px] text-[var(--text-faint)]">
             {t.lastUpdated}: {new Date().getFullYear()} · {t.methodTunisia}
           </div>
         </section>
+
+        <Field label={t.updaterSection}>
+          <UpdaterSection onClose={onClose} />
+        </Field>
 
         <button
           type="button"
@@ -405,17 +410,13 @@ function convertedError(error: 'invalid' | 'min' | 'max', t: ReturnType<typeof g
   return t.iqamaErrorMax;
 }
 
-/** Iqama Focus Mode: dedicated countdown/progress view at Iqama time plus a
- *  single-per-day Windows notification. Focus Duration (5/10/15/20 min) is
- *  deliberately separate from the 5-min-minimum Iqama delay. */
+/** Iqama Focus Mode: dedicated countdown/progress view from Adhan until
+ *  Iqama plus a single-per-day Windows notification. The active focus
+ *  duration is derived per prayer (Iqama − prayer timestamp, honouring the
+ *  5-min minimum of the manual delay); no fixed duration applies. */
 function FocusModeSection(): JSX.Element {
   const { settings, update } = useSettings();
   const t = getDict(settings.language);
-
-  const durationOptions: RadioGroupOptions<FocusDuration> = FOCUS_DURATIONS.map((d) => ({
-    value: d,
-    label: `${d} ${t.minutes}`,
-  }));
 
   return (
     <div className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3">
@@ -424,17 +425,6 @@ function FocusModeSection(): JSX.Element {
         checked={settings.iqamaFocusEnabled}
         onChange={(v) => update({ iqamaFocusEnabled: v })}
       />
-      <div>
-        <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          <Hourglass className="h-3 w-3" />
-          {t.focusDuration}
-        </div>
-        <RadioGroup
-          value={settings.focusDurationMinutes}
-          options={durationOptions}
-          onChange={(v) => update({ focusDurationMinutes: v })}
-        />
-      </div>
       <p className="text-[9px] leading-relaxed text-[var(--text-faint)]">{t.iqamaFocusHint}</p>
     </div>
   );

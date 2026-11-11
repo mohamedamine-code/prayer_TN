@@ -1,164 +1,210 @@
 import { describe, expect, it } from 'vitest';
-import type { IqamaDelays, PrayerKey } from '../src/types/prayer';
+import type { DayPrayerTimes, IqamaDelays } from '../src/types/prayer';
 import {
   activeFocusSession,
-  focusEndAt,
   focusRemainingRatio,
   formatFocusCountdown,
-  iqamaNotifyKey,
-  isIqamaNotificationDue,
   IQAMA_NOTIFY_GRACE_MS,
+  isIqamaNotificationDue,
+  iqamaNotifyKey,
+  type FocusWindow,
 } from '../src/services/focusMode';
+import { buildScheduleEntries } from '../src/services/prayerSchedule';
+import { buildPrayerTimestamps, wallClockToMs } from '../src/logic/times';
 import { resolveIqamaTimestamps } from '../src/services/iqamaTimes';
 
 const DATE = '08-11-2026';
+const NEXT_DATE = '09-11-2026';
 
-// 08-11-2026 (Africa/Tunis) — adhan times for the day.
-const TIMINGS: Record<PrayerKey, string> = {
-  Fajr: '05:50',
-  Dhuhr: '12:30',
-  Asr: '15:30',
-  Maghrib: '17:45',
-  Isha: '19:00',
-};
-const DELAYS: IqamaDelays = { Fajr: 5, Dhuhr: 10, Asr: 5, Maghrib: 5, Isha: 5 };
-const IQAMA = resolveIqamaTimestamps(DATE, TIMINGS, DELAYS);
+const at = (h: number, m: number, extraMs = 0): number => wallClockToMs(DATE, h, m) + extraMs;
+const nextAt = (h: number, m: number): number => wallClockToMs(NEXT_DATE, h, m);
 
-describe('resolveIqamaTimestamps base for tests', () => {
-  it('derives Iqama = adhan + 10 for Dhuhr', () => {
-    expect(IQAMA.Dhuhr).toBeDefined();
-    expect(IQAMA.Dhuhr! - IQAMA.Fajr!).toBeGreaterThan(0);
-  });
+const day = (dateKey: string, t: [string, string, string, string, string]): DayPrayerTimes => ({
+  dateKey,
+  timings: {
+    Fajr: t[0]!,
+    Sunrise: '06:34',
+    Dhuhr: t[1]!,
+    Asr: t[2]!,
+    Maghrib: t[3]!,
+    Isha: t[4]!,
+  },
+  hijri: { day: '20', monthNumber: 5, monthEn: 'Jumada II', monthAr: 'جمادى الآخرة', year: '1448' },
 });
 
-describe('focusEndAt', () => {
-  it('adds the configured duration to the Iqama timestamp', () => {
-    expect(focusEndAt(1_000_000, 15)).toBe(1_000_000 + 15 * 60_000);
-    expect(focusEndAt(1_000_000, 20)).toBe(1_000_000 + 20 * 60_000);
+/** Required acceptance case: Dhuhr 12:03, Iqama 13:00 (57-min delay). */
+const DHUHR_WINDOW: FocusWindow = { prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(13, 0) };
+
+/** Day with DIFFERENT Iqama delays per prayer (Fajr+5, Dhuhr+57, Asr+10, Maghrib+5, Isha+20). */
+const DELAYS: IqamaDelays = { Fajr: 5, Dhuhr: 57, Asr: 10, Maghrib: 5, Isha: 20 };
+const TODAY = day(DATE, ['05:07', '12:03', '15:30', '17:33', '18:59']);
+const TOMORROW = day(NEXT_DATE, ['05:07', '12:04', '15:08', '17:33', '18:59']);
+
+describe('ACCEPTANCE TESTS a–F (Dhuhr 12:03 → Iqama 13:00)', () => {
+  /** Test F detail: app launched mid-interval without knowing previous ticks. */
+  const derive = (now: number) => activeFocusSession(now, [DHUHR_WINDOW]);
+
+  it('A: 12:02:59 → Normal Mode (no focus)', () => {
+    expect(derive(at(12, 2, 59_000))).toBeNull();
   });
 
-  it('treats junk durations as zero', () => {
-    expect(focusEndAt(1_000_000, NaN)).toBe(1_000_000);
-  });
-});
-
-describe('activeFocusSession (timestamp window rule)', () => {
-  const dhuhr = IQAMA.Dhuhr!;
-
-  it('STATE 1 — before Iqama: no session (Normal Mode)', () => {
-    expect(activeFocusSession(dhuhr - 1, IQAMA, 15)).toBeNull();
-  });
-
-  it('STATE 2 — at exactly the Iqama timestamp the session starts', () => {
-    const s = activeFocusSession(dhuhr, IQAMA, 15);
+  it('B: 12:03:00 → Focus activates immediately, 57 minutes remaining', () => {
+    const s = derive(at(12, 3))!;
     expect(s).not.toBeNull();
-    expect(s!.prayer).toBe('Dhuhr');
-    expect(s!.iqamaAt).toBe(dhuhr);
-    expect(s!.focusEndAt).toBe(dhuhr + 15 * 60_000);
+    expect(s.prayer).toBe('Dhuhr');
+    expect(s.durationMin).toBe(57);
+    expect(s.focusEndAt).toBe(at(13, 0));
+    expect(formatFocusCountdown(s.focusEndAt - at(12, 3))).toBe('00:57:00');
   });
 
-  it('STATE 3 — after the configured focus window the session is over', () => {
-    expect(activeFocusSession(dhuhr + 15 * 60_000, IQAMA, 15)).toBeNull();
+  it('C: 12:43 → Focus remains active, 17 minutes remaining', () => {
+    const s = derive(at(12, 43))!;
+    expect(s.prayer).toBe('Dhuhr');
+    expect(formatFocusCountdown(s.focusEndAt - at(12, 43))).toBe('00:17:00');
   });
 
-  it('arbitrary configured durations (5/20 min) drive the window', () => {
-    expect(activeFocusSession(dhuhr + 5 * 60_000 - 1, IQAMA, 5)).not.toBeNull();
-    expect(activeFocusSession(dhuhr + 5 * 60_000, IQAMA, 5)).toBeNull();
-    expect(activeFocusSession(dhuhr + 19 * 60_000 + 59_999, IQAMA, 20)).not.toBeNull();
+  it('D: 12:59:59 → Focus remains active', () => {
+    expect(derive(at(12, 59, 59_999))).not.toBeNull();
   });
 
-  it('focus disabled → caller passes no timestamps → null (handled in hook)', () => {
-    expect(activeFocusSession(dhuhr, {}, 15)).toBeNull();
+  it('E: 13:00:00 → Focus ends; expired focus is never restored', () => {
+    expect(derive(at(13, 0))).toBeNull();
+    expect(derive(at(13, 15, 1_000))).toBeNull();
   });
 
-  it('survives a "simulated restart": same session derived at any moment inside the window', () => {
-    const midway = dhuhr + 7 * 60_000 + 23_456;
-    const s = activeFocusSession(midway, IQAMA, 15);
-    expect(s?.iqamaAt).toBe(dhuhr);
-  });
-
-  it('ignores prayers without a configured Iqama', () => {
-    const partial = { Dhuhr: IQAMA.Dhuhr! } as Partial<Record<PrayerKey, number>>;
-    expect(activeFocusSession(dhuhr + 1000, partial, 15)?.prayer).toBe('Dhuhr');
-    expect(activeFocusSession(dhuhr + 2000, partial, 15)?.focusEndAt).toBe(dhuhr + 15 * 60_000);
-  });
-
-  it('handles the Isha → next-day midnight rollover using absolute ms', () => {
-    const late = resolveIqamaTimestamps(DATE, { Isha: '23:58' }, { Isha: 5 });
-    const at = late.Isha!;
-    // 00:03 on the next day: still same session window (1 s after Iqama).
-    expect(activeFocusSession(at + 1_000, late, 15)?.prayer).toBe('Isha');
+  it('F: app starts at 12:43 → Focus restored instantly (stateless derivation)', () => {
+    const s = activeFocusSession(at(12, 43), [DHUHR_WINDOW])!;
+    expect(s.prayer).toBe('Dhuhr');
+    expect(formatFocusCountdown(s.focusEndAt - at(12, 43))).toBe('00:17:00');
   });
 });
 
-describe('formatFocusCountdown (MM:SS display)', () => {
-  it('formats the configured duration at start', () => {
-    expect(formatFocusCountdown(15 * 60_000)).toBe('15:00');
-    expect(formatFocusCountdown(5 * 60_000)).toBe('05:00');
+describe('activeFocusSession — window rule [adhan, iqama)', () => {
+  it('duration always = iqama − prayer (never a fixed value)', () => {
+    const s = activeFocusSession(at(12, 30), [DHUHR_WINDOW])!;
+    expect(s.durationMin).toBe(57);
+    expect(s.focusEndAt).toBe(s.iqamaAt);
   });
-
-  it('decreases second by second', () => {
-    expect(formatFocusCountdown(14 * 60_000 + 59_000)).toBe('14:59');
-    expect(formatFocusCountdown(14 * 60_000 + 58_999)).toBe('14:58');
-    expect(formatFocusCountdown(0)).toBe('00:00');
+  it('active at the adhan instant, inactive one ms before it', () => {
+    expect(activeFocusSession(at(12, 3) - 1, [DHUHR_WINDOW])).toBeNull();
+    expect(activeFocusSession(at(12, 3), [DHUHR_WINDOW])).not.toBeNull();
   });
-
-  it('clamps negative (stale) remainders at zero', () => {
-    expect(formatFocusCountdown(-1)).toBe('00:00');
-    expect(formatFocusCountdown(-5 * 60_000)).toBe('00:00');
+  it('inactive at the iqama instant (State 3 begins)', () => {
+    expect(activeFocusSession(at(13, 0), [DHUHR_WINDOW])).toBeNull();
   });
-});
-
-describe('focusRemainingRatio (progress bar)', () => {
-  it('starts at 1, decreases, reaches 0 at the end', () => {
-    const at = IQAMA.Maghrib!;
-    expect(focusRemainingRatio(at, at, 10)).toBe(1);
-    expect(focusRemainingRatio(at + 5 * 60_000, at, 10)).toBeCloseTo(0.5, 5);
-    expect(focusRemainingRatio(at + 10 * 60_000, at, 10)).toBe(0);
+  it('ignores degenerate windows (iqama not after prayer)', () => {
+    expect(activeFocusSession(at(12, 30), [{ prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(12, 3) }])).toBeNull();
+    expect(
+      activeFocusSession(at(12, 30), [{ prayer: 'Dhuhr', prayerAt: at(12, 3), iqamaAt: at(12, 2) }]),
+    ).toBeNull();
   });
-
-  it('never exceeds 0..1 outside the window', () => {
-    const at = IQIMAOrZero();
-    expect(focusRemainingRatio(at - 60_000, at, 10)).toBe(1);
-    expect(focusRemainingRatio(at + 11 * 60_000, at, 10)).toBe(0);
+  it('all five prayers, each with its own delay (integration)', () => {
+    const windows = buildScheduleEntries(TODAY, DELAYS)!.map((e) => ({
+      prayer: e.key,
+      prayerAt: e.prayerAt,
+      iqamaAt: e.iqamaAt!,
+    }));
+    expect(activeFocusSession(at(5, 9), windows)!.prayer).toBe('Fajr');
+    expect(activeFocusSession(at(12, 43), windows)!.prayer).toBe('Dhuhr');
+    expect(activeFocusSession(at(15, 35), windows)!.prayer).toBe('Asr');
+    expect(activeFocusSession(at(17, 35), windows)!.prayer).toBe('Maghrib');
+    expect(activeFocusSession(at(19, 5), windows)!.prayer).toBe('Isha');
+    // After every iqama: back to Normal Mode (no focus).
+    expect(activeFocusSession(at(13, 0), windows)).toBeNull();
+    expect(activeFocusSession(at(19, 19), windows)).toBeNull();
   });
-});
-
-function IQIMAOrZero(): number {
-  return IQAMA.Maghrib!;
-}
-
-describe('notification deduplication keys', () => {
-  it('is unique per prayer and per date/timestamp', () => {
-    const k1 = iqamaNotifyKey('tunis', DATE, 'Dhuhr', IQAMA.Dhuhr!);
-    const k2 = iqamaNotifyKey('tunis', DATE, 'Maghrib', IQAMA.Maghrib!);
-    const k3 = iqamaNotifyKey('tunis', '09-11-2026', 'Dhuhr', IQAMA.Dhuhr!);
-    expect(new Set([k1, k2, k3]).size).toBe(3);
+  it('Isha window ends before next-day Fajr; next-day Fajr window works after midnight', () => {
+    const isha = { prayer: 'Isha' as const, prayerAt: at(18, 59), iqamaAt: at(19, 19) };
+    const fajr = { prayer: 'Fajr' as const, prayerAt: nextAt(5, 7), iqamaAt: nextAt(5, 12) };
+    expect(activeFocusSession(at(23, 0), [isha, fajr])).toBeNull(); // after midnight sleep
+    const s = activeFocusSession(nextAt(5, 10), [isha, fajr])!;
+    expect(s.prayer).toBe('Fajr');
+    expect(s.durationMin).toBe(5);
   });
-
-  it('is stable for the same prayer/date so replays deduplicate', () => {
-    expect(iqamaNotifyKey('tunis', DATE, 'Isha', IQAMA.Isha!)).toBe(
-      iqamaNotifyKey('tunis', DATE, 'Isha', IQAMA.Isha!),
-    );
+  it('multiple day-boundaries: current-day window wins over stale tomorrow window', () => {
+    const todayFajr = { prayer: 'Fajr' as const, prayerAt: at(5, 7), iqamaAt: at(5, 12) };
+    const tomorrowFajr = { prayer: 'Fajr' as const, prayerAt: nextAt(5, 7), iqamaAt: nextAt(5, 12) };
+    const s = activeFocusSession(at(5, 10), [tomorrowFajr, todayFajr])!;
+    expect(s.iqamaAt).toBe(at(5, 12));
   });
 });
 
-describe('isIqamaNotificationDue (grace window)', () => {
-  const at = IQAMA.Asr!;
-
-  it('due at exactly the Iqama time', () => {
-    expect(isIqamaNotificationDue(at, at)).toBe(true);
+describe('integration — resolveIqamaTimestamps + pc times', () => {
+  it('delay configuration produces exact windows for all five prayers', () => {
+    const timings = resolveIqamaTimestamps(TODAY.dateKey, TODAY.timings, DELAYS);
+    const windows = buildScheduleEntries(TODAY, DELAYS)!.map((e) => ({
+      prayer: e.key,
+      prayerAt: e.prayerAt,
+      iqamaAt: e.iqamaAt!,
+    }));
+    expect(windows.map((w) => w.prayer)).toEqual(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']);
+    const dhuhr = windows.find((w) => w.prayer === 'Dhuhr')!;
+    expect(dhuhr.prayerAt).toBe(at(12, 3));
+    expect(dhuhr.iqamaAt).toBe(at(13, 0));
+    expect(timings.Dhuhr).not.toBeUndefined();
   });
-
-  it('due within the grace window after it', () => {
-    expect(isIqamaNotificationDue(at + IQAMA_NOTIFY_GRACE_MS - 1_000, at)).toBe(true);
+  it('app restart mid-focus reconstructs the identical session from stored data', () => {
+    const entries = buildScheduleEntries(TODAY, DELAYS)!;
+    const restored = activeFocusSession(at(12, 43), entries.map((e) => ({ prayer: e.key, prayerAt: e.prayerAt, iqamaAt: e.iqamaAt! })));
+    expect(restored!.prayer).toBe('Dhuhr');
+    expect(restored!.focusEndAt).toBe(at(13, 0));
   });
+});
 
-  it('stale after the grace window (no replay after wake / long outage)', () => {
-    expect(isIqamaNotificationDue(at + IQAMA_NOTIFY_GRACE_MS + 1_000, at)).toBe(false);
+describe('formatFocusCountdown (H:MM:SS display)', () => {
+  it('formats 17 minutes as 00:17:00 and 57 minutes as 00:57:00', () => {
+    expect(formatFocusCountdown(17 * 60_000)).toBe('00:17:00');
+    expect(formatFocusCountdown(57 * 60_000)).toBe('00:57:00');
   });
+  it('keeps ticking per second', () => {
+    expect(formatFocusCountdown(16 * 60_000 + 59_000)).toBe('00:16:59');
+    expect(formatFocusCountdown(20 * 60_000 - 1)).toBe('00:19:59');
+  });
+  it('supports hours (IH → next-day transitions longer than 60 min)', () => {
+    expect(formatFocusCountdown(61 * 60_000)).toBe('01:01:00');
+    expect(formatFocusCountdown(2 * 3600_000 + 59 * 60_000 + 59_000)).toBe('02:59:59');
+  });
+  it('clamps at zero', () => {
+    expect(formatFocusCountdown(0)).toBe('00:00:00');
+    expect(formatFocusCountdown(-1)).toBe('00:00:00');
+    expect(formatFocusCountdown(-5 * 60_000)).toBe('00:00:00');
+  });
+});
 
-  it('not due before the Iqama time', () => {
-    expect(isIqamaNotificationDue(at - 1, at)).toBe(false);
+describe('focusRemainingRatio (progress bar, span = iqama − prayer)', () => {
+  it('1 at the adhan, 0.5 mid-window, 0 at the iqama', () => {
+    expect(focusRemainingRatio(at(12, 3), at(12, 3), at(13, 0))).toBe(1);
+    expect(focusRemainingRatio(at(12, 31, 30_000), at(12, 3), at(13, 0))).toBeCloseTo(0.5, 5);
+    expect(focusRemainingRatio(at(13, 0), at(12, 3), at(13, 0))).toBe(0);
+  });
+  it('clamps outside the window', () => {
+    expect(focusRemainingRatio(at(12, 2), at(12, 3), at(13, 0))).toBe(1);
+    expect(focusRemainingRatio(at(14, 0), at(12, 3), at(13, 0))).toBe(0);
+  });
+  it('degenerate window yields zero', () => {
+    expect(focusRemainingRatio(at(12, 30), at(12, 30), at(12, 30))).toBe(0);
+  });
+});
+
+describe('notification helpers (unchanged semantics)', () => {
+  it('iqama key is stable per prayer/date/timestamp (dedup across restarts)', () => {
+    const a = iqamaNotifyKey('tunis', DATE, 'Dhuhr', at(13, 0));
+    expect(a).toBe(iqamaNotifyKey('tunis', DATE, 'Dhuhr', at(13, 0)));
+    expect(a).not.toBe(iqamaNotifyKey('tunis', DATE, 'Dhuhr', at(13, 1)));
+    expect(a).not.toBe(iqamaNotifyKey('sfax', DATE, 'Dhuhr', at(13, 0)));
+    expect(a).not.toBe(iqamaNotifyKey('tunis', '09-11-2026', 'Dhuhr', at(13, 0)));
+  });
+  it('iqama notification is due only within the grace of the iqama timestamp', () => {
+    expect(isIqamaNotificationDue(at(13, 0), at(13, 0))).toBe(true);
+    expect(isIqamaNotificationDue(at(13, 0, IQAMA_NOTIFY_GRACE_MS), at(13, 0))).toBe(true);
+    expect(isIqamaNotificationDue(at(13, 0, IQAMA_NOTIFY_GRACE_MS + 1), at(13, 0))).toBe(false);
+    expect(isIqamaNotificationDue(at(12, 59), at(13, 0))).toBe(false);
+  });
+});
+
+describe('prayer notification firing time (adhan, not iqama)', () => {
+  it('buildPrayerTimestamps keeps the official adhan as the prayer timestamp', () => {
+    const entries = buildPrayerTimestamps(TODAY)!;
+    expect(entries.find((e) => e.key === 'Dhuhr')!.at).toBe(at(12, 3));
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Hourglass } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import { LottieLight } from 'lottie-react';
 import flowIcon from './assets/flowIcon.json';
 import type { AnimationEvent, JSX } from 'react';
@@ -22,12 +22,7 @@ import { usePrayerCountdown } from '../hooks/usePrayerCountdown';
 import { useIqamaTimes } from '../hooks/useIqamaTimes';
 import { useIqamaFocus } from '../hooks/useIqamaFocus';
 import { useLocation } from '../hooks/useLocation';
-import {
-  focusEndAt,
-  focusRemainingRatio,
-  formatFocusCountdown,
-  type FocusSession,
-} from '../services/focusMode';
+import { formatFocusCountdown, type FocusSession } from '../services/focusMode';
 import { TUNIS_TZ, wallClockInTz } from '../logic/times';
 import { applyFontSize, applyTheme } from '../logic/theme';
 
@@ -127,17 +122,6 @@ function Chevron({ dir }: { dir: 'left' | 'right' | 'up' | 'down' }): JSX.Elemen
   return <ChevronDown />;
 }
 
-/** Clock text (HH:MM or 12h) from an absolute epoch ms in Tunis time. */
-function formatEpochClock(ms: number, clockFormat: Settings['clockFormat']): string {
-  const { h, m } = wallClockInTz(TUNIS_TZ, new Date(ms));
-  if (clockFormat === '12h') {
-    const suffix = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
-  }
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 /** Widget surface classes for the current expansion phase. */
 function miniMainClass(phase: DockPhase, focusActive: boolean): string {
   let cls = 'mini-main';
@@ -205,7 +189,6 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   const focus = useIqamaFocus(
     times.today,
     settings?.iqamaDelays ?? {},
-    settings?.focusDurationMinutes ?? 15,
     settings?.iqamaFocusEnabled ?? true,
     countdown.nowMs,
     {
@@ -215,13 +198,6 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
     },
   );
   const focusActive = !!focus.session;
-  /* Tell the main process ONCE per transition to expand/restore the window. */
-  const lastFocusSent = useRef(false);
-  useEffect(() => {
-    if (lastFocusSent.current === focusActive) return;
-    lastFocusSent.current = focusActive;
-    void window.salati?.setMiniFocus(focusActive);
-  }, [focusActive]);
 
   const nextMini = countdown.next;
 
@@ -345,14 +321,18 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
 
       <div
         className={miniMainClass(phase, focusActive)}
-        style={{ visibility: phase === 'collapsed' && !focusActive ? 'hidden' : 'visible' }}
+        style={{ visibility: phase === 'collapsed' ? 'hidden' : 'visible' }}
         onAnimationEnd={onMiniAnimEnd}
       >
         <div className={focusActive ? 'mini-root is-focus-shell' : 'mini-root'}>
           <div className="mini-header">
-            <span className="mini-logo">Salati</span>
-            <span className="mini-clock">{nowHHMMSS}</span>
-            <span className="mini-city" title={miniCity}>{miniCity}</span>
+            {!focusActive && (
+              <>
+                <span className="mini-logo">Salati</span>
+                <span className="mini-clock">{nowHHMMSS}</span>
+                <span className="mini-city" title={miniCity}>{miniCity}</span>
+              </>
+            )}
             <button
               type="button"
               className="mini-close"
@@ -369,7 +349,6 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
               nowMs={countdown.nowMs}
               settings={settings}
               t={t}
-              onEnd={() => focus.dismiss(focus.session!)}
             />
           ) : (
             <>
@@ -424,50 +403,33 @@ function DockSurface({ dock }: { dock: DockState }): JSX.Element {
   );
 }
 
-/** Iqama Focus Mode layout for the floating widget (STATE 2). The active
- *  prayer is the visual priority: dedicated large MM:SS countdown derived
- *  from timestamps, progress bar over the remaining focus time, plus an
- *  early-exit button. Same theme/design tokens as the compact widget. */
+/** Iqama Focus Mode layout for the floating widget (STATE 2). A pure
+ *  in-place visual transformation of the SAME panel: only the current
+ *  prayer name and the timestamp-derived HH:MM:SS countdown to its Iqama,
+ *  centred on a dark translucent shell. No extra information, no window
+ *  resize — the countdown targets session.iqamaAt and never resets. */
 function FocusPanel({
   session,
   nowMs,
   settings,
   t,
-  onEnd,
 }: {
   session: FocusSession;
   nowMs: number;
   settings: Settings;
   t: ReturnType<typeof getDict>;
-  onEnd: () => void;
 }): JSX.Element {
-  const remaining = Math.max(0, focusEndAt(session.iqamaAt, session.durationMin) - nowMs);
-  const ratio = focusRemainingRatio(nowMs, session.iqamaAt, session.durationMin);
+  const remaining = Math.max(0, session.iqamaAt - nowMs);
+  const nameAr = prayerName(session.prayer, 'ar');
   return (
     <div className="mini-focus">
-      <div className="mini-focus-head">
-        <Hourglass className="mini-focus-head-icon" />
-        <span className="mini-focus-label">{t.focusTitle}</span>
-      </div>
       <div className="mini-focus-name">
-        <span className="mini-focus-name-ar">{prayerName(session.prayer, 'ar')}</span>
-        <span className="mini-focus-name-latin">{prayerName(session.prayer, settings.language)}</span>
-      </div>
-      <div className="mini-focus-times">
-        <span title={t.nextPrayer}>{formatEpochClock(session.prayerAt, settings.clockFormat)}</span>
-        <span className="mini-focus-arrow">→</span>
-        <span className="mini-focus-iqama" title={t.iqama}>
-          {formatEpochClock(session.iqamaAt, settings.clockFormat)}
-        </span>
+        {settings.language === 'ar'
+          ? nameAr
+          : `${prayerName(session.prayer, settings.language).toUpperCase()} · ${nameAr}`}
       </div>
       <div className="mini-focus-countdown">{formatFocusCountdown(remaining)}</div>
-      <div className="mini-focus-bar" aria-hidden="true">
-        <div className="mini-focus-fill" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
-      </div>
-      <div className="mini-focus-msg">{t.focusMsg}</div>
-      <button type="button" className="mini-focus-end" onClick={onEnd}>
-        {t.focusEndEarly}
-      </button>
+      <div className="mini-focus-caption">{t.focusUntilIqama}</div>
     </div>
   );
 }

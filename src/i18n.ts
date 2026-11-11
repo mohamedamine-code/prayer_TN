@@ -38,6 +38,25 @@ export interface Dict {
   about: string;
   version: string;
   lastUpdated: string;
+  updaterSection: string;
+  updaterCheck: string;
+  updaterChecking: string;
+  updaterUpToDate: string;
+  updaterAvailable: string;
+  updaterDownloading: string;
+  updaterDownloaded: string;
+  updaterDownload: string;
+  updaterRestartInstall: string;
+  updaterLater: string;
+  updaterReleaseNotes: string;
+  updaterNewVersion: string;
+  updaterLastCheck: string;
+  updaterAutoHint: string;
+  updaterDisabled: string;
+  updaterErrorNetwork: string;
+  updaterErrorMetadata: string;
+  updaterErrorUnknown: string;
+  updaterProgressOf: string;
   connectionOnline: string;
   connectionOffline: string;
   usingCache: string;
@@ -79,6 +98,7 @@ export interface Dict {
   focusMsg: string;
   focusEndEarly: string;
   focusRemaining: string;
+  focusUntilIqama: string;
   locSection: string;
   locToggle: string;
   locPermission: string;
@@ -187,12 +207,13 @@ const fr: Dict = {
   iqamaErrorMax: '120 minutes maximum.',
   iqamaFocus: 'Mode focus Iqama',
   iqamaFocusHint:
-    'À l’heure de l’Iqama le widget flottant passe en mode focus (compte à rebours dédié + notification). Une seule notification par prière par jour.',
+    'À l’adhan, le widget flottant passe en mode focus jusqu’à l’Iqama (compte à rebours dédié + notification). Une seule notification par prière par jour.',
   focusDuration: 'Durée du focus',
   focusTitle: 'Focus Iqama',
   focusMsg: 'Prenez un moment pour la prière.',
   focusEndEarly: 'Terminer le focus',
   focusRemaining: 'Temps restant',
+  focusUntilIqama: 'Temps avant l’Iqama',
   locSection: 'Localisation automatique',
   locToggle: 'Localisation automatique',
   locPermission: 'Statut de permission',
@@ -229,6 +250,25 @@ const fr: Dict = {
   locDenyBody:
     'Les horaires utilisent la ville sélectionnée manuellement. Vous pouvez réessayer la localisation automatique ou autoriser la géolocalisation dans les réglages Windows.',
   locRetry: 'Réessayer la localisation',
+  updaterSection: 'Mises à jour',
+  updaterCheck: 'Rechercher des mises à jour',
+  updaterChecking: 'Recherche de mise à jour…',
+  updaterUpToDate: 'Vous avez la dernière version',
+  updaterAvailable: 'Nouvelle version disponible',
+  updaterDownloading: 'Téléchargement de la mise à jour…',
+  updaterDownloaded: 'Mise à jour prête à installer',
+  updaterDownload: 'Télécharger la mise à jour',
+  updaterRestartInstall: 'Redémarrer et installer',
+  updaterLater: 'Plus tard',
+  updaterReleaseNotes: 'Notes de version',
+  updaterNewVersion: 'Nouvelle version',
+  updaterLastCheck: 'Dernière vérification',
+  updaterAutoHint: 'Vérification automatique toutes les 6 heures après le lancement.',
+  updaterDisabled: 'Mises à jour désactivées (environ. de développement).',
+  updaterErrorNetwork: 'Impossible de vérifier. Vérifiez votre connexion Internet.',
+  updaterErrorMetadata: 'Informations de mise à jour invalides sur le serveur.',
+  updaterErrorUnknown: 'La vérification de mise à jour a échoué.',
+  updaterProgressOf: 'sur',
 };
 
 const ar: Dict = {
@@ -306,12 +346,13 @@ const ar: Dict = {
   iqamaErrorMax: 'الحد الأقصى 120 دقيقة.',
   iqamaFocus: 'وضع التركيز للإقامة',
   iqamaFocusHint:
-    'عند وصول وقت الإقامة ينتقل الودجت العائم إلى وضع التركيز (عدّاد مخصص + إشعار). إشعار واحد فقط لكل صلاة في اليوم.',
+    'من وقت الأذان إلى وقت الإقامة ينتقل الودجت العائم إلى وضع التركيز (عدّاد مخصص + إشعار). إشعار واحد فقط لكل صلاة في اليوم.',
   focusDuration: 'مدة التركيز',
   focusTitle: 'تركيز الإقامة',
   focusMsg: 'خصص وقتا للصلاة.',
   focusEndEarly: 'إنهاء التركيز',
   focusRemaining: 'الوقت المتبقي',
+  focusUntilIqama: 'حتى الإقامة',
   locSection: 'الموقع التلقائي',
   locToggle: 'الموقع التلقائي',
   locPermission: 'حالة الإذن',
@@ -343,6 +384,25 @@ const ar: Dict = {
   locDenyTitle: 'تم رفض الموقع',
   locDenyBody: 'تُستخدم المدينة المحددة يدويًا في الحساب. يمكنك إعادة محاولة الموقع التلقائي أو السماح بتحديد الموقع من إعدادات ويندوز.',
   locRetry: 'إعادة محاولة تحديد الموقع',
+  updaterSection: 'التحديثات',
+  updaterCheck: 'التحقق من وجود تحديثات',
+  updaterChecking: 'جارٍ التحقق من التحديثات…',
+  updaterUpToDate: 'لديك الإصدار الأحدث',
+  updaterAvailable: 'يتوفر إصدار جديد',
+  updaterDownloading: 'جارٍ تنزيل التحديث…',
+  updaterDownloaded: 'التحديث جاهز للتثبيت',
+  updaterDownload: 'تنزيل التحديث',
+  updaterRestartInstall: 'أعد التشغيل والتثبيت',
+  updaterLater: 'لاحقًا',
+  updaterReleaseNotes: 'ملاحظات الإصدار',
+  updaterNewVersion: 'الإصدار الجديد',
+  updaterLastCheck: 'آخر تحقق',
+  updaterAutoHint: 'فحص تلقائي كل 6 ساعات بعد الإطلاق.',
+  updaterDisabled: 'التحديثات معطّلة (بيئة التطوير).',
+  updaterErrorNetwork: 'تعذر التحقق. تحقق من اتصالك بالإنترنت.',
+  updaterErrorMetadata: 'معلومات التحديث على الخادم غير صالحة.',
+  updaterErrorUnknown: 'فشل التحقق من التحديثات.',
+  updaterProgressOf: 'من',
 };
 
 const en: Dict = {
@@ -420,12 +480,13 @@ const en: Dict = {
   iqamaErrorMax: 'Maximum 120 minutes.',
   iqamaFocus: 'Iqama Focus Mode',
   iqamaFocusHint:
-    'At Iqama time the floating widget switches to Focus Mode (dedicated countdown + notification). One notification per prayer per day.',
+    'From the adhan until the Iqama the floating widget switches to Focus Mode (dedicated countdown + notification). One notification per prayer per day.',
   focusDuration: 'Focus duration',
   focusTitle: 'Iqama Focus',
   focusMsg: 'Take a moment for prayer.',
   focusEndEarly: 'End Focus Mode',
   focusRemaining: 'Time remaining',
+  focusUntilIqama: 'Time until Iqama',
   locSection: 'Automatic location',
   locToggle: 'Automatic location',
   locPermission: 'Permission status',
@@ -462,6 +523,25 @@ const en: Dict = {
   locDenyBody:
     'Prayer times use the manually selected city. You can retry automatic location or allow geolocation in Windows settings.',
   locRetry: 'Retry location',
+  updaterSection: 'Updates',
+  updaterCheck: 'Check for updates',
+  updaterChecking: 'Checking for updates…',
+  updaterUpToDate: 'You are up to date',
+  updaterAvailable: 'New version available',
+  updaterDownloading: 'Downloading update…',
+  updaterDownloaded: 'Update ready to install',
+  updaterDownload: 'Download update',
+  updaterRestartInstall: 'Restart & install',
+  updaterLater: 'Later',
+  updaterReleaseNotes: 'Release notes',
+  updaterNewVersion: 'New version',
+  updaterLastCheck: 'Last check',
+  updaterAutoHint: 'Automatic check every 6 hours after launch.',
+  updaterDisabled: 'Updates disabled (development environment).',
+  updaterErrorNetwork: 'Could not check. Verify your Internet connection.',
+  updaterErrorMetadata: 'Invalid update information on the server.',
+  updaterErrorUnknown: 'Update check failed.',
+  updaterProgressOf: 'of',
 };
 
 export const DICTS: Record<Language, Dict> = { fr, ar, en };

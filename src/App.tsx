@@ -62,7 +62,6 @@ export default function App(): JSX.Element {
   useIqamaFocus(
     times.today,
     settings.iqamaDelays,
-    settings.focusDurationMinutes,
     settings.iqamaFocusEnabled,
     countdown.nowMs,
     {

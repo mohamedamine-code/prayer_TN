@@ -1,0 +1,58 @@
+name: Release
+
+# Publish a release whenever a version tag (v1.0.1) is pushed.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Minimum permissions: publishing to GitHub Releases needs contents:write.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Fail early if the tag and package.json version disagree.
+      - name: Verify tag matches package.json version
+        shell: bash
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "v$PKG_VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version (v$PKG_VERSION)."
+            exit 1
+          fi
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: TypeScript checks
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build renderer + electron bundle
+        run: npm run build
+
+      - name: Generate icons
+        run: npm run icons
+
+      # Publishes the NSIS installer, latest.yml and .blockmap files to
+      # GitHub Releases using the workflow's built-in token only.
+      # --publish onTag = publish only because this run was triggered by a
+      # version tag (v1.0.1); it never publishes from plain pushes or PRs.
+      - name: Build and publish Windows installer
+        run: npx electron-builder --win --publish onTag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
