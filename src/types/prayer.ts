@@ -8,7 +8,7 @@ export type Language = 'fr' | 'ar' | 'en';
 
 export type ClockFormat = '12h' | '24h';
 
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = 'dark' | 'light' | 'system' | 'emerald-glass';
 
 export type AsrMadhab = 'standard' | 'hanafi';
 

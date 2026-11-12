@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type ReactNode } from 'react';
-import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4 } from 'lucide-react';
+import { X, RotateCcw, Bell, BellOff, BellRing, MapPin, RefreshCw, ClipboardList, Trash2, Hand, Clock4, Sun, Moon, Sparkles, Monitor } from 'lucide-react';
 import type { RadioGroupOptions } from './RadioGroup';
 import { RadioGroup } from './RadioGroup';
 import { CitySelect } from './CitySelect';
@@ -36,10 +36,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
     { value: '10min', label: t.notif10min, icon: BellRing },
   ];
 
-  const themeOptions: { value: ThemeMode; label: string }[] = [
-    { value: 'dark', label: t.themeDark },
-    { value: 'light', label: t.themeLight },
-    { value: 'system', label: t.themeSystem },
+  const themeOptions: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
+    { value: 'light', label: t.themeLight, icon: Sun },
+    { value: 'dark', label: t.themeDark, icon: Moon },
+    { value: 'emerald-glass', label: t.themeEmerald, icon: Sparkles },
+    { value: 'system', label: t.themeSystem, icon: Monitor },
   ];
 
   const clockOptions = [

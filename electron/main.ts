@@ -81,7 +81,13 @@ function applySettings(s: Settings): void {
     mainWindow.setAlwaysOnTop(s.alwaysOnTop);
     if (process.platform === 'win32') mainWindow.setOpacity(s.opacity);
     // Keep the opaque base color in sync with the themed shell (P5).
-    mainWindow.setBackgroundColor(s.theme === 'light' ? '#e7f0f8' : '#0b111a');
+    mainWindow.setBackgroundColor(
+      s.theme === 'light'
+        ? '#e7f0f8'
+        : s.theme === 'emerald-glass'
+          ? '#06090b'
+          : '#0b111a',
+    );
   }
   setLoginItemSetting(s.startWithWindows);
   applyMiniVisibility(s.showFloatingWidget);
@@ -141,7 +147,12 @@ function createWindow(): void {
     thickFrame: true,
     // Opaque base color matches the widget shell (updated on theme change in
     // applySettings) so rounded corners / first paint never flash white.
-    backgroundColor: settings.theme === 'light' ? '#e7f0f8' : '#0b111a',
+    backgroundColor:
+      settings.theme === 'light'
+        ? '#e7f0f8'
+        : settings.theme === 'emerald-glass'
+          ? '#06090b'
+          : '#0b111a',
     alwaysOnTop: true,
     skipTaskbar: false,
     autoHideMenuBar: true,

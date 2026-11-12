@@ -71,6 +71,25 @@ html[data-theme='light'] {
   --mini-chev-bg: rgba(15, 40, 56, 0.08);
   --mini-chev-hover: rgba(2, 132, 199, 0.25);
 }
+/* Emerald Glass — third theme, additive; Light/Dark palettes above are untouched. */
+html[data-theme='emerald-glass'] {
+  --mini-bg: linear-gradient(165deg, #0a0f10 0%, #06090b 100%);
+  --mini-border: rgba(255, 255, 255, 0.1);
+  --mini-shadow: 0 0 40px rgba(16, 185, 129, 0.1);
+  --mini-text: #ffffff;
+  --mini-text-muted: #94a3b8;
+  --mini-text-faint: #64748b;
+  --mini-cell-border: rgba(255, 255, 255, 0.06);
+  --mini-cell-cells-border: rgba(255, 255, 255, 0.08);
+  --mini-accent: #34d399;
+  --mini-iqama: #34d399;
+  --mini-check: #34d399;
+  --mini-tab-bg: linear-gradient(180deg, #0c1415 0%, #06090b 100%);
+  --mini-tab-border: rgba(255, 255, 255, 0.12);
+  --mini-tab-hover: linear-gradient(180deg, #122420 0%, #0a0f10 100%);
+  --mini-chev-bg: rgba(255, 255, 255, 0.06);
+  --mini-chev-hover: rgba(16, 185, 129, 0.3);
+}
 
 .mini-root {
   -webkit-app-region: no-drag;

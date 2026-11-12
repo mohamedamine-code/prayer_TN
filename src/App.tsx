@@ -18,12 +18,18 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { LocationPermissionDialog } from './components/LocationPermissionDialog';
 import { ErrorView } from './components/ErrorView';
 import { buildPrayerTimestamps } from './logic/times';
-import { applyFontSize, applyTheme } from './logic/theme';
+import { applyFontSize, applyTheme, restoreStoredTheme } from './logic/theme';
 
 export default function App(): JSX.Element {
   const { settings, ready } = useSettings();
   const { language, theme, opacity } = settings;
   const loc = useLocation();
+
+  // Paint the persisted theme immediately (localStorage mirror) so the window
+  // never flashes the default dark palette before the settings bridge answers.
+  useEffect(() => {
+    restoreStoredTheme();
+  }, []);
 
   useEffect(() => {
     applyTheme(theme);
@@ -212,7 +218,9 @@ function Shell({ opacity, children }: { opacity: number; children: ReactNode }):
         className="pattern-islamic pointer-events-none absolute inset-0 opacity-40"
         aria-hidden="true"
       />
-      <div className="relative flex h-full min-h-0 flex-col" style={{ opacity }}>
+      <div className="eg-grid pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className="eg-glow pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div className="shell-content relative flex h-full min-h-0 flex-col" style={{ opacity }}>
         {children}
       </div>
     </div>

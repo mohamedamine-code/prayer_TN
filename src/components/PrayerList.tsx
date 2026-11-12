@@ -63,7 +63,9 @@ export function PrayerList({
         return (
           <div
             key={entry.key}
-            className={`app-no-drag flex items-center gap-2.5 rounded-xl border px-3 py-2 transition ${highlight}`}
+            className={`prayer-row app-no-drag flex items-center gap-2.5 rounded-xl border px-3 py-2 transition ${highlight} ${
+              isNext ? 'row-next' : ''
+            }`}
           >
             <div
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
@@ -76,13 +78,13 @@ export function PrayerList({
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-1.5">
                 <span
-                  className={`truncate text-[12.5px] font-semibold ${
+                  className={`prayer-name truncate text-[12.5px] font-semibold ${
                     isNext ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
                   }`}
                 >
                   {prayerName(entry.key, language)}
                 </span>
-                <span className="font-arabic truncate text-[11px] text-[var(--text-muted)]">
+                <span dir="rtl" className="font-arabic prayer-ar truncate text-[11px] text-[var(--text-muted)]">
                   {prayerName(entry.key, 'ar')}
                 </span>
               </div>
@@ -90,7 +92,7 @@ export function PrayerList({
 
             <div className="flex flex-col items-end">
               <div
-                className={`font-mono text-[13px] font-semibold tabular-nums ${
+                className={`prayer-time font-mono text-[13px] font-semibold tabular-nums ${
                   isNext ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
                 }`}
               >

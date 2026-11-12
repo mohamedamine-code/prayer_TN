@@ -141,7 +141,9 @@ export function validateSettings(input: unknown): Settings {
   const methodId = Number(src.calculationMethod);
   const calculationMethod = CALC_METHODS.some((m) => m.id === methodId) ? methodId : DEFAULT_SETTINGS.calculationMethod;
   const theme =
-    src.theme === 'light' || src.theme === 'system' || src.theme === 'dark' ? src.theme : 'dark';
+    src.theme === 'light' || src.theme === 'system' || src.theme === 'dark' || src.theme === 'emerald-glass'
+      ? src.theme
+      : 'dark';
   const fontSize: FontSizeMode = FONT_SIZES.includes(src.fontSize as FontSizeMode)
     ? (src.fontSize as FontSizeMode)
     : 'medium';

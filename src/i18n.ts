@@ -29,6 +29,7 @@ export interface Dict {
   themeDark: string;
   themeLight: string;
   themeSystem: string;
+  themeEmerald: string;
   fontSize: string;
   fontSmall: string;
   fontMedium: string;
@@ -162,6 +163,7 @@ const fr: Dict = {
   themeDark: 'Sombre',
   themeLight: 'Clair',
   themeSystem: 'Système',
+  themeEmerald: 'Verre Émeraude',
   fontSize: 'Taille du texte',
   fontSmall: 'Petite',
   fontMedium: 'Moyenne',
@@ -301,6 +303,7 @@ const ar: Dict = {
   themeDark: 'داكن',
   themeLight: 'فاتح',
   themeSystem: 'النظام',
+  themeEmerald: 'زجاج زمردي',
   fontSize: 'حجم الخط',
   fontSmall: 'صغير',
   fontMedium: 'متوسط',
@@ -435,6 +438,7 @@ const en: Dict = {
   themeDark: 'Dark',
   themeLight: 'Light',
   themeSystem: 'System',
+  themeEmerald: 'Emerald Glass',
   fontSize: 'Text size',
   fontSmall: 'Small',
   fontMedium: 'Medium',
